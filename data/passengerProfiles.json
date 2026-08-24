@@ -1,0 +1,28 @@
+{
+  "singlePassenger": {
+    "firstName": "QA",
+    "lastName": "SS",
+    "passportNumber": "A346645345",
+    "mobile": "7365445454",
+    "email": "sadhin@innovatesolution.com"
+  },
+  "multiplePassengers": [
+    {
+      "firstName": "QA",
+      "lastName": "RR",
+      "passportNumber": "A346645345",
+      "mobile": "7365445454",
+      "email": "sadhin@innovatesolution.com"
+    },
+    {
+      "firstName": "RAHIM",
+      "lastName": "ALI",
+      "passportNumber": "A987654321"
+    },
+    {
+      "firstName": "TANIA",
+      "lastName": "ISLAM",
+      "passportNumber": "A112233445"
+    }
+  ]
+}

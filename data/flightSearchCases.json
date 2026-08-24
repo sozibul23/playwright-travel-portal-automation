@@ -1,0 +1,22 @@
+[
+  {
+    "id": "DAC-DEL-OneWay",
+    "originCode": "dac",
+    "originDisplay": "Dhaka - Bangladesh",
+    "destinationCode": "del",
+    "destinationDisplay": "New Delhi - India",
+    "departureDate": "July 15,",
+    "supplier": "TravelRobotFlight-Sandbox",
+    "isRoundTrip": false
+  },
+  {
+    "id": "DAC-DEL-OneWay-Date2",
+    "originCode": "dac",
+    "originDisplay": "Dhaka - Bangladesh",
+    "destinationCode": "del",
+    "destinationDisplay": "New Delhi - India",
+    "departureDate": "July 20,",
+    "supplier": "TravelRobotFlight-Sandbox",
+    "isRoundTrip": false
+  }
+]
