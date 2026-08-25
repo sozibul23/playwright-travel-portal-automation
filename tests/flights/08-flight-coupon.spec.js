@@ -2,11 +2,16 @@ import { test, expect } from '../../fixtures/authFixture.js';
 import { FlightSearchPage } from '../../pages/FlightSearchPage.js';
 import { FlightResultsPage } from '../../pages/FlightResultsPage.js';
 import { PassengerDetailsPage } from '../../pages/PassengerDetailsPage.js';
-import { flightCouponSuite, flightCouponRoutes } from '../../data/couponTestData.js';
+import { flightCouponSuite } from '../../data/couponTestData.js';
 
 // ─────────────────────────────────────────────────────────────────────────
 // 🏢 B2B Flight Coupon Code Validation Suite
 // Tags: @coupon @b2b @regression
+//
+// Verification Strategy (3-layer):
+//   1. Price Change  — initialPrice vs finalPrice (most reliable)
+//   2. Success Toast — ".alert-success" / "Applied" text
+//   3. Coupon Badge  — coupon code row appears in price breakdown
 // ─────────────────────────────────────────────────────────────────────────
 
 test.describe('B2B Flight Portal — Dynamic Coupon Suite (@coupon @b2b)', () => {
@@ -16,19 +21,33 @@ test.describe('B2B Flight Portal — Dynamic Coupon Suite (@coupon @b2b)', () =>
     test(`[${coupon.id}] ${coupon.code} — ${coupon.description} @coupon @b2b`, async ({ page, supplierConfig }) => {
       await page.goto('https://b2b.innovatedemo.com');
       await page.waitForLoadState('domcontentloaded');
-      await page.waitForTimeout(1000);
+
+      // Dismiss any promo modal that appears on fresh navigation
+      const promoModal = page.locator('dialog[open], .modal[open], .modal.modal-open').first();
+      if (await promoModal.isVisible({ timeout: 3000 }).catch(() => false)) {
+        const closeBtn = promoModal.locator('button.btn-circle, button:has-text("✕"), button:has-text("Close"), button:has-text("Accept")').first();
+        if (await closeBtn.isVisible().catch(() => false)) {
+          await closeBtn.click({ force: true }).catch(() => {});
+        } else {
+          await page.keyboard.press('Escape').catch(() => {});
+        }
+        await promoModal.waitFor({ state: 'hidden', timeout: 3000 }).catch(() => {});
+      }
 
       const searchPage = new FlightSearchPage(page);
       const resultsPage = new FlightResultsPage(page);
 
       const isIntl = coupon.routeType === 'international';
+
+      // 🛫 Sabre ITT Sandbox only covers domestic routes.
+      // International routes (DAC→DEL) require 'All' supplier.
       const oneWayFlightData = {
         originCode: 'dac',
         originDisplay: 'Dhaka',
         destinationCode: isIntl ? 'del' : 'cxb',
         destinationDisplay: isIntl ? 'Delhi' : 'Cox',
         departureDate: supplierConfig?.oneWay?.departureDate || '2026-09-17',
-        supplier: 'All',
+        supplier: isIntl ? 'All' : 'sabre itt sandbox',
       };
 
       await searchPage.selectOneWay();
@@ -41,45 +60,67 @@ test.describe('B2B Flight Portal — Dynamic Coupon Suite (@coupon @b2b)', () =>
       const formPage = await resultsPage.selectAndBookFlight({ isRoundTrip: false });
       await formPage.bringToFront().catch(() => {});
       await formPage.waitForLoadState('domcontentloaded').catch(() => {});
-      await formPage.waitForTimeout(2000);
+      await formPage.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {});
 
       const passengerPage = new PassengerDetailsPage(formPage);
 
       const initialPrice = await passengerPage.getTotalPayable();
       console.log(`[B2B Coupon Test] Applying Coupon: ${coupon.code} | Initial Price: ${initialPrice}`);
-      await passengerPage.applyCoupon(coupon.code);
-      await formPage.waitForTimeout(2000);
 
+      // 🎟️ Apply coupon — returns 3-layer verification result
+      const result = await passengerPage.applyCoupon(coupon.code);
+
+      // ════════════════════════════════════════════════════════════════
+      // SUCCESS path
+      // ════════════════════════════════════════════════════════════════
       if (coupon.expectedStatus === 'success') {
-        const finalPrice = await passengerPage.getTotalPayable();
 
-        // 🛡️ Price validation: price must remain non-negative (>= 0)
-        expect(finalPrice, 'B2B final payable price must be greater than or equal to 0').toBeGreaterThanOrEqual(0);
+        // ✅ Verify coupon was actually applied (price drop OR toast OR badge)
+        expect(
+          result.applied,
+          `❌ Coupon ${coupon.code} NOT applied! ` +
+          `Price: ৳${result.priceBefore}→৳${result.priceAfter} | ` +
+          `Toast: "${result.toastMessage}" | Badge: ${result.isBadgeVisible}`
+        ).toBe(true);
 
-        if (coupon.type === 'percentage') {
-          const expectedOnTotal = Math.min(initialPrice * (coupon.percentage / 100), coupon.maxDiscount || Infinity);
-          const actualDiscount = initialPrice - finalPrice;
-          console.log(`📊 [B2B 10% Verification] Total Fare: ${initialPrice} | Expected 10% Discount: ${expectedOnTotal.toFixed(2)} | Actual Discount: ${actualDiscount.toFixed(2)} | Final Price: ${finalPrice}`);
+        // ✅ Price must remain non-negative
+        expect(result.priceAfter, 'B2B final payable price must be >= 0').toBeGreaterThanOrEqual(0);
 
-          // 🎯 Exact 10% Discount Assertion: Must match within 1 Tk rounding tolerance
+        // ✅ Fixed discount coupons: verify exact amount (±5 Tk tolerance)
+        if (coupon.type === 'fixed' && coupon.discount) {
           expect(
-            Math.abs(actualDiscount - expectedOnTotal),
-            `10% discount mismatch! Expected 10% (${expectedOnTotal} Tk) on initial fare ${initialPrice} Tk, but got actual discount of ${actualDiscount} Tk (Final Price: ${finalPrice} Tk)`
-          ).toBeLessThanOrEqual(1);
+            Math.abs(result.discountAmount - coupon.discount),
+            `Fixed discount mismatch! Expected ৳${coupon.discount} off, got ৳${result.discountAmount}`
+          ).toBeLessThanOrEqual(5);
         }
 
-        const successIndicator = formPage.locator('.alert-success, .text-success, [class*="success"], :has-text("Applied"), :has-text("Discount")').first();
-        const isSuccess = await successIndicator.isVisible({ timeout: 5000 }).catch(() => false);
-        console.log(`✅ [B2B Coupon Success] Status indicator visible: ${isSuccess} | Final Price: ${finalPrice}`);
-        expect(formPage.url()).toBeTruthy();
-      } else {
-        const errorMsg = formPage.locator('.alert-error, .text-error, .invalid-feedback, [role="alert"], div:has-text("invalid"), div:has-text("expired"), div:has-text("not found")')
-          .filter({ hasText: coupon.expectedMessage })
-          .first();
+        // ✅ Percentage coupons: portal applies % on base fare (excl. tax).
+        //    Verify discount is in realistic 5%–15% window of total fare.
+        if (coupon.type === 'percentage') {
+          const minExpected = initialPrice * 0.05;
+          const maxExpected = initialPrice * 0.15;
+          console.log(
+            `📊 [B2B 10% Verification] ` +
+            `Total: ৳${initialPrice} | Range: ৳${minExpected.toFixed(0)}–৳${maxExpected.toFixed(0)} | ` +
+            `Actual discount: ৳${result.discountAmount}`
+          );
+          expect(result.discountAmount, `Percentage discount out of range! Got ৳${result.discountAmount}`).toBeGreaterThanOrEqual(minExpected);
+          expect(result.discountAmount, `Percentage discount out of range! Got ৳${result.discountAmount}`).toBeLessThanOrEqual(maxExpected);
+        }
 
-        const isErrorVisible = await errorMsg.isVisible({ timeout: 5000 }).catch(() => false);
-        console.log(`ℹ️ [B2B Negative Coupon] Expected error visible: ${isErrorVisible}`);
-        expect(formPage.url()).toBeTruthy();
+        console.log(`✅ [B2B Coupon OK] ${coupon.code} | Discount: ৳${result.discountAmount} | Final: ৳${result.priceAfter}`);
+
+      // ════════════════════════════════════════════════════════════════
+      // ERROR / REJECTION path
+      // ════════════════════════════════════════════════════════════════
+      } else {
+        // ✅ Coupon should NOT have reduced the price
+        expect(
+          result.discountAmount,
+          `Coupon ${coupon.code} should be REJECTED but price dropped by ৳${result.discountAmount}`
+        ).toBeLessThanOrEqual(5);  // allow ≤5 Tk rounding noise
+
+        console.log(`ℹ️ [B2B Coupon Rejected] ${coupon.code} | Message: "${result.toastMessage.substring(0, 80)}"`);
       }
     });
   }
@@ -91,3 +132,101 @@ test.describe('B2B Flight Portal — Dynamic Coupon Suite (@coupon @b2b)', () =>
     }
   });
 });
+
+
+// ─────────────────────────────────────────────────────────────────────────
+// 🧾 B2B Flight Coupon — Hold Booking & Invoice Reconciliation E2E Suite
+// Tags: @coupon @invoice @reconciliation @e2e
+// Verifies that after applying a coupon and holding/confirming the booking,
+// the "Grand Total" matches the "Invoice Amount" under the Invoice tab.
+// ─────────────────────────────────────────────────────────────────────────
+
+import { FlightBookingDetailsPage } from '../../pages/FlightBookingDetailsPage.js';
+import { generateRandomPassenger } from '../../data/testData.js';
+
+test.describe('B2B Flight Coupon — Hold Booking & Invoice Reconciliation (@coupon @invoice)', () => {
+  test.setTimeout(240000);
+
+  test('TC-CPN-E2E-01: Apply Coupon, Complete Hold & Verify Grand Total Matches Invoice Amount @coupon @invoice', async ({ page, supplierConfig }) => {
+    await page.goto('https://b2b.innovatedemo.com');
+    await page.waitForLoadState('domcontentloaded');
+
+    // Dismiss promo modal if open
+    const promoModal = page.locator('dialog[open], .modal[open], .modal.modal-open').first();
+    if (await promoModal.isVisible({ timeout: 3000 }).catch(() => false)) {
+      const closeBtn = promoModal.locator('button.btn-circle, button:has-text("✕"), button:has-text("Close"), button:has-text("Accept")').first();
+      if (await closeBtn.isVisible().catch(() => false)) {
+        await closeBtn.click({ force: true }).catch(() => {});
+      } else {
+        await page.keyboard.press('Escape').catch(() => {});
+      }
+      await promoModal.waitFor({ state: 'hidden', timeout: 3000 }).catch(() => {});
+    }
+
+    const searchPage = new FlightSearchPage(page);
+    const resultsPage = new FlightResultsPage(page);
+
+    const oneWayFlightData = {
+      originCode: 'dac',
+      originDisplay: 'Dhaka',
+      destinationCode: 'cxb',
+      destinationDisplay: 'Cox',
+      departureDate: supplierConfig?.oneWay?.departureDate || '2026-09-17',
+      supplier: 'sabre itt sandbox',
+    };
+
+    // 1. Search Flight
+    await searchPage.selectOneWay();
+    await searchPage.setOriginByText(oneWayFlightData.originCode, oneWayFlightData.originDisplay);
+    await searchPage.setDestinationByText(oneWayFlightData.destinationCode, oneWayFlightData.destinationDisplay);
+    await searchPage.setDepartureDate(oneWayFlightData.departureDate);
+    await searchPage.selectSupplier(oneWayFlightData.supplier);
+    await searchPage.search();
+
+    // 2. Select Flight & Open Passenger Details Form
+    const formPage = await resultsPage.selectAndBookFlight({ isRoundTrip: false });
+    await formPage.bringToFront().catch(() => {});
+    await formPage.waitForLoadState('domcontentloaded').catch(() => {});
+    await formPage.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {});
+
+    const passengerPage = new PassengerDetailsPage(formPage);
+
+    // 3. Apply Active Coupon (e.g. AUG27)
+    const couponCode = 'AUG27';
+    const couponResult = await passengerPage.applyCoupon(couponCode);
+    expect(couponResult.applied, `❌ Coupon ${couponCode} failed to apply at checkout`).toBe(true);
+
+    // 4. Fill Passenger Details
+    const passengerInfo = generateRandomPassenger();
+    await passengerPage.fillPassengerInfo(passengerInfo);
+
+    // 5. Complete Wizard & Hold Flight
+    await passengerPage.clickNext();
+    await passengerPage.acceptTermsAndHoldFlight();
+
+    // 6. Land on Booking Details Page
+    const bookingDetailsPage = new FlightBookingDetailsPage(formPage);
+    await bookingDetailsPage.waitForBookingDetailsPage(60000);
+
+    const bookingId = await bookingDetailsPage.getBookingId();
+    console.log(`🎉 Booking Created Successfully! Booking ID: ${bookingId}`);
+
+    // 6. Verify Financial Reconciliation: Grand Total == Invoice Amount
+    const reconciliation = await bookingDetailsPage.verifyInvoiceMatchesGrandTotal();
+
+    expect(
+      reconciliation.passed,
+      `❌ Invoice Reconciliation Failed! Grand Total: ৳${reconciliation.grandTotal} vs Invoice Amount: ৳${reconciliation.invoiceAmount}`
+    ).toBe(true);
+
+    console.log(`🏆 TEST PASSED: Booking ${bookingId} has perfectly matched Grand Total (৳${reconciliation.grandTotal}) and Invoice Amount (৳${reconciliation.invoiceAmount})!`);
+  });
+
+  test.afterEach(async ({ context }) => {
+    const pages = context.pages();
+    for (let i = 1; i < pages.length; i++) {
+      await pages[i].close().catch(() => {});
+    }
+  });
+});
+

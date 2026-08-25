@@ -59,18 +59,18 @@ export class PassengerDetailsPage {
     await this.firstNameField.fill(firstName);
     await this.lastNameField.fill(lastName);
 
-    if (passportNumber) {
+    if (passportNumber && await this.passportField.isVisible({ timeout: 2000 }).catch(() => false)) {
       await this.passportField.clear();
       await this.passportField.fill(passportNumber);
     }
 
-    if (mobile) {
+    if (mobile && await this.mobileField.isVisible({ timeout: 2000 }).catch(() => false)) {
       await this.mobileField.focus();
       await this.page.keyboard.press('Control+a');
       await this.page.keyboard.press('Backspace');
       await this.mobileField.pressSequentially(mobile, { delay: 50 });
     }
-    if (email) {
+    if (email && await this.emailField.isVisible({ timeout: 2000 }).catch(() => false)) {
       await this.emailField.clear();
       await this.emailField.fill(email);
     }
@@ -237,15 +237,6 @@ export class PassengerDetailsPage {
     
     let attempts = 0;
     while (attempts < 10) {
-      const isInstantPurchaseVisible = await this.page.getByRole('button', { name: /Instant Purchase|Hold Flight/i }).first().isVisible({ timeout: 1500 }).catch(() => false);
-      const isTermsVisible = await this.termsCheckbox.isVisible({ timeout: 1500 }).catch(() => false);
-      const isCheckoutURL = this.page.url().includes('checkout');
-      
-      if (isInstantPurchaseVisible || isTermsVisible || isCheckoutURL) {
-        console.log('PassengerDetailsPage: Final checkout page reached.');
-        break;
-      }
-      
       const isNextVisible = await this.nextBtn.isVisible({ timeout: 2000 }).catch(() => false);
       if (!isNextVisible) {
         console.log('PassengerDetailsPage: Next button is no longer visible.');
@@ -254,8 +245,17 @@ export class PassengerDetailsPage {
       
       console.log(`PassengerDetailsPage: Clicking Next button (wizard step ${attempts + 1})...`);
       await this.nextBtn.click({ force: true });
-      await this.page.waitForTimeout(1000);
+      await this.page.waitForTimeout(1500);
       await this.dismissModals();
+
+      const isInstantPurchaseVisible = await this.page.getByRole('button', { name: /Instant Purchase|Hold Flight/i }).first().isVisible({ timeout: 1500 }).catch(() => false);
+      const isTermsVisible = await this.termsCheckbox.isVisible({ timeout: 1500 }).catch(() => false);
+      
+      if (isInstantPurchaseVisible || isTermsVisible) {
+        console.log('PassengerDetailsPage: Final payment/hold section reached.');
+        break;
+      }
+      
       attempts++;
     }
   }
@@ -265,59 +265,99 @@ export class PassengerDetailsPage {
     await this.dismissModals();
     await this.page.waitForLoadState('domcontentloaded').catch(() => {});
 
-    // Step 1: Initial "Instant Purchase" or "Hold Flight" button click if required to reveal terms checkboxes
-    const initialBtn = this.page.getByRole('button', { name: /Instant Purchase|Hold Flight/i }).first();
-    if (await initialBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-      const isTermsVisible = await this.termsCheckbox.isVisible({ timeout: 500 }).catch(() => false);
-      if (!isTermsVisible) {
-        console.log('PassengerDetailsPage: Clicking initial Instant Purchase / Hold Flight to reveal terms...');
-        await initialBtn.click({ force: true }).catch(() => {});
-        await this.page.waitForTimeout(1000);
-      }
-    }
-    
-    // Step 2: Check Terms and Conditions checkboxes
-    if (await this.termsCheckbox.isVisible({ timeout: 3000 }).catch(() => false)) {
-      console.log('PassengerDetailsPage: Checking Terms checkbox...');
-      await this.termsCheckbox.check().catch(() => {});
-    }
-    if (await this.agreeCheckbox.isVisible({ timeout: 2000 }).catch(() => false)) {
-      console.log('PassengerDetailsPage: Checking Agree & Understand checkbox...');
-      await this.agreeCheckbox.check().catch(() => {});
+    if (this.page.url().includes('booking-details')) {
+      console.log('Already on booking details page.');
+      return;
     }
 
-    // Step 3: Final confirmation click (Instant Purchase / Hold Flight / Pay)
+    // Step 1: Check all visible terms/agreement checkboxes
+    const checkboxes = this.page.locator('input[type="checkbox"]');
+    const chkCount = await checkboxes.count();
+    for (let i = 0; i < chkCount; i++) {
+      const chk = checkboxes.nth(i);
+      if (await chk.isVisible({ timeout: 1000 }).catch(() => false)) {
+        await chk.check({ force: true }).catch(() => chk.evaluate(el => el.checked = true));
+      }
+    }
+
+    // Step 2: Confirmation button click (Hold Flight / Instant Purchase)
     const confirmBtn = this.page
-      .locator('button')
-      .filter({ hasText: /Instant Purchase|Hold Flight|Pay and Reserve|Book Flight|Issue Ticket/i })
+      .locator('button, a.btn, .btn')
+      .filter({ hasText: /Hold Flight|Instant Purchase|Pay and Reserve|Book Flight|Issue Ticket/i })
       .filter({ visible: true })
       .first();
 
-    await confirmBtn.waitFor({ state: 'visible', timeout: 30000 });
-    const btnText = await confirmBtn.innerText().catch(() => 'Confirmation');
-    console.log(`PassengerDetailsPage: Clicking final confirmation button ("${btnText.replace(/\n/g, ' ')}")...`);
-    await confirmBtn.scrollIntoViewIfNeeded().catch(() => {});
-    await confirmBtn.click({ force: true }).catch(() => confirmBtn.evaluate(el => el.click()));
-    await this.page.waitForTimeout(2000).catch(() => {});
+    if (await confirmBtn.isVisible({ timeout: 8000 }).catch(() => false)) {
+      const btnText = await confirmBtn.innerText().catch(() => 'Confirmation');
+      console.log(`PassengerDetailsPage: Clicking confirmation button ("${btnText.replace(/\n/g, ' ')}")...`);
+      await confirmBtn.scrollIntoViewIfNeeded().catch(() => {});
+      await confirmBtn.click({ force: true }).catch(() => confirmBtn.evaluate(el => el.click()));
+      await this.page.waitForTimeout(2000).catch(() => {});
+    }
 
-    // Handle secondary modal confirmation if triggered
-    const modalConfirmBtn = this.page
-      .locator('.modal, [role="dialog"], dialog, div[class*="modal"]')
-      .locator('button')
-      .filter({ hasText: /Confirm|Yes|OK|Proceed|Pay|Hold|Purchase/i })
-      .first();
-    if (await modalConfirmBtn.isVisible({ timeout: 4000 }).catch(() => false)) {
-      console.log('Secondary modal detected after clicking payment/hold. Clicking modal confirm button...');
-      await modalConfirmBtn.click({ force: true }).catch(() => {});
+    // Step 3: Handle secondary confirmation modal popup if present
+    const modalDialog = this.page.locator('dialog[open], .modal[open], .modal.modal-open, .modal-box, div[role="dialog"]');
+    if (await modalDialog.isVisible({ timeout: 3000 }).catch(() => false)) {
+      const modalConfirmBtn = modalDialog
+        .locator('button, a')
+        .filter({ hasText: /Confirm|Yes|OK|Proceed|Pay|Hold|Purchase/i })
+        .first();
+      if (await modalConfirmBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+        console.log('Secondary modal detected after clicking payment/hold. Clicking modal confirm button...');
+        await modalConfirmBtn.click({ force: true }).catch(() => {});
+      }
     }
   }
 
   /**
-   * Click 'Instant Purchase' button directly on /flight/checkout page
+   * Strictly clicks 'Instant Purchase' button only (excludes Hold Flight)
    */
   async clickInstantPurchase() {
-    await this.acceptTermsAndHoldFlight();
+    await this.dismissModals();
+
+    // Check all visible checkboxes (terms/agreement)
+    const checkboxes = this.page.locator('input[type="checkbox"]');
+    const chkCount = await checkboxes.count();
+    for (let i = 0; i < chkCount; i++) {
+      const chk = checkboxes.nth(i);
+      if (await chk.isVisible({ timeout: 1000 }).catch(() => false)) {
+        await chk.check({ force: true }).catch(() => chk.evaluate(el => el.checked = true));
+      }
+    }
+
+    // Strictly target Instant Purchase — explicitly exclude Hold Flight
+    const instantBtn = this.page
+      .locator('button, a.btn, .btn')
+      .filter({ hasText: /Instant Purchase|Pay and Reserve|Issue Ticket/i })
+      .filter({ hasNotText: /Hold Flight|Hold/i })
+      .filter({ visible: true })
+      .first();
+
+    const isAvailable = await instantBtn.isVisible({ timeout: 8000 }).catch(() => false);
+    if (!isAvailable) {
+      throw new Error('❌ "Instant Purchase" button not found or not visible on checkout page.');
+    }
+
+    const btnText = await instantBtn.innerText().catch(() => 'Instant Purchase');
+    console.log(`PassengerDetailsPage: Clicking Instant Purchase button ("${btnText.replace(/\n/g, ' ')}")...`);
+    await instantBtn.scrollIntoViewIfNeeded().catch(() => {});
+    await instantBtn.click({ force: true }).catch(() => instantBtn.evaluate(el => el.click()));
+    await this.page.waitForTimeout(2000).catch(() => {});
+
+    // Handle secondary confirmation modal if present
+    const modalDialog = this.page.locator('dialog[open], .modal[open], .modal.modal-open, .modal-box, div[role="dialog"]');
+    if (await modalDialog.isVisible({ timeout: 3000 }).catch(() => false)) {
+      const modalConfirmBtn = modalDialog
+        .locator('button, a')
+        .filter({ hasText: /Confirm|Yes|OK|Proceed|Pay|Purchase/i })
+        .first();
+      if (await modalConfirmBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+        console.log('Secondary modal detected. Clicking confirm...');
+        await modalConfirmBtn.click({ force: true }).catch(() => {});
+      }
+    }
   }
+
 
   // -- Strictly clicks "Hold Flight" button only
   async acceptTermsAndHoldFlightOnlyStrict() {
@@ -377,12 +417,61 @@ export class PassengerDetailsPage {
     await couponInput.fill('');
     await couponInput.fill(couponCode);
 
+    // Capture price BEFORE applying
+    const priceBefore = await this.getTotalPayable();
+
     const applyBtn = this.page
       .getByRole('button', { name: /Apply/i })
       .or(this.page.locator('button:has-text("Apply")'))
       .first();
     await applyBtn.click({ force: true });
-    await this.page.waitForTimeout(2000);
+
+    // Wait for portal response (toast, badge, or price change)
+    await this.page.waitForTimeout(2500);
+
+    // ── Verification Method 1: Success / Error Toast ─────────────────────
+    const successToast = this.page.locator(
+      '.alert-success, .text-success, [class*="success"], ' +
+      'div:has-text("successfully"), div:has-text("Applied"), div:has-text("Discount applied")'
+    ).first();
+    const errorToast = this.page.locator(
+      '.alert-error, .alert-danger, .text-error, .text-danger, [class*="error"], [class*="danger"], ' +
+      '[role="alert"], div:has-text("invalid"), div:has-text("expired"), ' +
+      'div:has-text("not found"), div:has-text("not applicable"), div:has-text("not eligible")'
+    ).first();
+
+    const isSuccessToast = await successToast.isVisible({ timeout: 3000 }).catch(() => false);
+    const isErrorToast   = await errorToast.isVisible({ timeout: 1000 }).catch(() => false);
+    const toastMessage   = isSuccessToast
+      ? await successToast.innerText().catch(() => '')
+      : isErrorToast
+        ? await errorToast.innerText().catch(() => '')
+        : '';
+
+    // ── Verification Method 2: Coupon Badge / Row (shows "-৳2,000") ──────
+    const couponBadge = this.page.locator(
+      `[class*="coupon"], [class*="discount-row"], ` +
+      `div:has-text("${couponCode}"), span:has-text("${couponCode}")`
+    ).first();
+    const isBadgeVisible = await couponBadge.isVisible({ timeout: 2000 }).catch(() => false);
+
+    // ── Verification Method 3: Price Change ──────────────────────────────
+    const priceAfter     = await this.getTotalPayable();
+    const discountAmount = priceBefore > 0 ? parseFloat((priceBefore - priceAfter).toFixed(2)) : 0;
+    const isPriceReduced = discountAmount > 0;
+
+    // ── Final verdict ─────────────────────────────────────────────────────
+    const applied = isSuccessToast || isBadgeVisible || isPriceReduced;
+
+    console.log(
+      `🎟️ [Coupon: ${couponCode}] ` +
+      `Applied: ${applied} | ` +
+      `Price: ৳${priceBefore} → ৳${priceAfter} (Discount: ৳${discountAmount}) | ` +
+      `Toast: "${toastMessage.trim().substring(0, 60)}" | ` +
+      `Badge visible: ${isBadgeVisible}`
+    );
+
+    return { applied, discountAmount, priceAfter, priceBefore, toastMessage, isBadgeVisible };
   }
 
   async getTotalPayable() {

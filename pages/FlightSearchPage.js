@@ -151,14 +151,18 @@ export class FlightSearchPage {
 
   async setNthOriginByText(index, cityOrCode, displayText = '') {
     await this.ensureFlightsTabActive();
+    await this.dismissOpenModals();
 
     const originInput = this.page.locator('input.sb-input').first();
     await originInput.scrollIntoViewIfNeeded().catch(() => { });
     await originInput.click({ force: true });
+    await this.page.waitForTimeout(300);
 
     const searchBox = this.page.locator('input[placeholder*="Airport code"], input[type="search"]').filter({ visible: true }).first();
     await searchBox.waitFor({ state: 'visible', timeout: 10000 });
+    await searchBox.fill('');
     await searchBox.fill(cityOrCode);
+    await this.page.waitForTimeout(600);
 
     const code = cityOrCode.trim().toUpperCase();
     const option = this.page.locator('div, li, button, span, [role="option"]')
@@ -166,9 +170,14 @@ export class FlightSearchPage {
       .filter({ visible: true })
       .first();
 
-    await option.waitFor({ state: 'visible', timeout: 5000 });
+    await option.waitFor({ state: 'visible', timeout: 6000 });
     await option.click({ force: true }).catch(() => option.evaluate(el => el.click()));
-    await searchBox.waitFor({ state: 'hidden', timeout: 2000 }).catch(() => {});
+    // Wait until the dropdown closes (origin input goes back to showing selected airport)
+    await this.page.waitForFunction(
+      () => !document.querySelector('input[placeholder*="Airport code"]:not([style*="display: none"])'),
+      { timeout: 3000 }
+    ).catch(() => {});
+    await this.page.waitForTimeout(300);
   }
 
   // ── Destination ───────────────────────────────────────────────────────────
@@ -178,14 +187,18 @@ export class FlightSearchPage {
 
   async setNthDestinationByText(index, cityOrCode, displayText = '') {
     await this.ensureFlightsTabActive();
+    await this.dismissOpenModals();
 
     const destInput = this.page.locator('input.sb-input').nth(1);
     await destInput.scrollIntoViewIfNeeded().catch(() => { });
     await destInput.click({ force: true });
+    await this.page.waitForTimeout(300);
 
     const searchBox = this.page.locator('input[placeholder*="Airport code"], input[type="search"]').filter({ visible: true }).first();
     await searchBox.waitFor({ state: 'visible', timeout: 10000 });
+    await searchBox.fill('');
     await searchBox.fill(cityOrCode);
+    await this.page.waitForTimeout(600);
 
     const code = cityOrCode.trim().toUpperCase();
     const option = this.page.locator('div, li, button, span, [role="option"]')
@@ -193,9 +206,14 @@ export class FlightSearchPage {
       .filter({ visible: true })
       .first();
 
-    await option.waitFor({ state: 'visible', timeout: 5000 });
+    await option.waitFor({ state: 'visible', timeout: 6000 });
     await option.click({ force: true }).catch(() => option.evaluate(el => el.click()));
-    await searchBox.waitFor({ state: 'hidden', timeout: 2000 }).catch(() => {});
+    // Wait until the dropdown closes
+    await this.page.waitForFunction(
+      () => !document.querySelector('input[placeholder*="Airport code"]:not([style*="display: none"])'),
+      { timeout: 3000 }
+    ).catch(() => {});
+    await this.page.waitForTimeout(300);
   }
 
   // ── Dates ─────────────────────────────────────────────────────────────────
@@ -205,7 +223,10 @@ export class FlightSearchPage {
    * max 3 মাস পর্যন্ত navigate করবে।
    */
   async _navigateCalendarToDate(dateLabel) {
+    // Wait for calendar to be fully open first
     const openCalendar = this.page.locator('.flatpickr-calendar.open');
+    await openCalendar.waitFor({ state: 'visible', timeout: 6000 }).catch(() => {});
+
     const nextBtn = openCalendar.locator('.flatpickr-next-month, [aria-label="Next month"], .next-month').first();
 
     // Extract day number (e.g. "20" from "August 20, 2026")
@@ -224,14 +245,20 @@ export class FlightSearchPage {
 
     for (let attempt = 0; attempt < 4; attempt++) {
       const target = getDayCell();
-      const isVisible = await target.isVisible({ timeout: 500 }).catch(() => false);
+      const isVisible = await target.isVisible({ timeout: 800 }).catch(() => false);
       if (isVisible) {
         await target.click({ force: true }).catch(() => { });
-        await target.evaluate(el => el.click()).catch(() => { });
+        // Verify calendar closed (date was accepted)
+        const calendarClosed = await openCalendar.isVisible({ timeout: 1000 }).then(v => !v).catch(() => true);
+        if (!calendarClosed) {
+          // Fallback: JS click
+          await target.evaluate(el => el.click()).catch(() => { });
+        }
         return;
       }
       if (await nextBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
         await nextBtn.click({ force: true }).catch(() => { });
+        await this.page.waitForTimeout(300);
       }
     }
 
@@ -369,6 +396,7 @@ export class FlightSearchPage {
   // ── Search ────────────────────────────────────────────────────────────────
   async search() {
     await this.ensureFlightsTabActive();
+    await this.dismissOpenModals();
     await this.page.keyboard.press('Escape').catch(() => { });
 
     const searchBtn = this.page.locator('button')
@@ -379,8 +407,11 @@ export class FlightSearchPage {
     await searchBtn.waitFor({ state: 'visible', timeout: 15000 }).catch(() => { });
     await searchBtn.click({ force: true });
 
+    // Wait for results page URL and initial DOM load
     await this.page.waitForURL(/\/flight/i, { timeout: 35000 }).catch(() => { });
     await this.page.waitForLoadState('domcontentloaded').catch(() => { });
+    // Give the results API time to respond and render flight cards
+    await this.page.waitForTimeout(1500);
   }
 
   // Negative test এ validation confirm করার জন্য — URL change হওয়া উচিত না
