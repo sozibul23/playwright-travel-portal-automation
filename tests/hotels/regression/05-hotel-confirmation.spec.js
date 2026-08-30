@@ -6,7 +6,7 @@ import { hotelSearchData, hotelGuestData } from '../../../data/testData.js';
 // Tags: @critical, @regression
 // ─────────────────────────────────────────────────────────────────────────
 
-test.describe('Sprint 4 — Hotel Booking Confirmation Suite (HTL-37 → HTL-44)', () => {
+test.describe('Sprint 4 — Hotel Booking Confirmation Suite (HTL-37 to HTL-44)', () => {
   test.setTimeout(300000); // 5 min
 
   // ── Shared helper: search → room select → guest fill → pay ────────────

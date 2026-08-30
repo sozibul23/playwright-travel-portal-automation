@@ -6,7 +6,7 @@ import { hotelSearchData } from '../../../data/testData.js';
 // Tags: @critical, @regression
 // ─────────────────────────────────────────────────────────────────────────
 
-test.describe('Sprint 1 — Hotel Filters & Sorting Suite (HTL-11 → HTL-20)', () => {
+test.describe('Sprint 1 — Hotel Filters & Sorting Suite (HTL-11 to HTL-20)', () => {
   test.setTimeout(60000);
 
   test.beforeEach(async ({ hotelSearchPage }) => {

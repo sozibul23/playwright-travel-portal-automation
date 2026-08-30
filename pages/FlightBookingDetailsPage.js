@@ -44,22 +44,32 @@ export class FlightBookingDetailsPage extends BasePage {
       const pages = context.pages();
       for (const p of pages) {
         const url = p.url();
-        if (url.includes('/booking-details') || url.includes('/bookings/flight') || url.includes('/pnr')) {
-          console.log(`🎯 Found booking details page: ${url}`);
+        // ✅ Expanded URL pattern matching — covers all known portal confirmation URLs:
+        //   /booking-details, /bookings/flight, /pnr, tracking_id query param, hold_success
+        if (
+          url.includes('/booking-details') ||
+          url.includes('/bookings/flight') ||
+          url.includes('/pnr') ||
+          url.includes('tracking_id=') ||
+          url.includes('hold_success') ||
+          url.includes('booking_tracking_id')
+        ) {
+          console.log(`🎯 Found booking confirmation page: ${url}`);
           this.page = p;
           await this.page.bringToFront().catch(() => {});
           await this.page.waitForLoadState('domcontentloaded').catch(() => {});
-          await this.page.waitForTimeout(3000);
+          // Extra wait for dynamic content (price summary, booking ID) to render
+          await this.page.waitForTimeout(4000);
           return;
         }
       }
 
-      // Check if current page has explicit PNR / Booking reference
+      // Fallback: check current page for booking reference text elements
       const bookingRef = this.page.locator('body').filter({
-        hasText: /Booking ID:\s*FL\d+|PNR:\s*[A-Z0-9]+|Hold Successful/i
+        hasText: /Booking ID:\s*FL\d+|PNR:\s*[A-Z0-9]+|Hold Successful|Booking Confirmed|Your booking|Tracking ID/i
       }).first();
       if (await bookingRef.isVisible({ timeout: 500 }).catch(() => false)) {
-        console.log('🎯 Found booking reference element on page!');
+        console.log('🎯 Found booking reference element on current page!');
         await this.page.waitForTimeout(2000);
         return;
       }

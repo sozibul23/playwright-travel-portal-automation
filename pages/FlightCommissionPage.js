@@ -26,78 +26,82 @@ export class FlightCommissionPage {
 
   // ── STEP 2: "Fare Summary" button ক্লিক করে popup খোলা ─────────────────────
   async openFareSummary() {
-    await this.page.getByRole('button', { name: 'Fare Summary' }).first().click();
+    const btn = this.page.getByRole('button', { name: /Fare Summary/i })
+      .or(this.page.locator('button:has-text("Fare Summary"), [role="button"]:has-text("Fare Summary"), a:has-text("Fare Summary")'))
+      .first();
+    await btn.waitFor({ state: 'visible', timeout: 15000 });
+    await btn.click({ force: true });
 
     await this.page
-      .getByText('Fare Summary', { exact: true })
+      .getByText(/Fare Summary/i)
       .first()
       .waitFor({ state: 'visible', timeout: 10000 });
 
-    await this.page.locator('[class*="grid-cols-8"]').first().waitFor({ state: 'visible', timeout: 5000 }).catch(() => { });
+    await this.page.waitForTimeout(500);
   }
 
+  async openFareSummaryModal() {
+    await this.openFareSummary();
+  }
 
-  // ── STEP 3: Fare Breakdown grid থেকে pax-wise data extract করা ────────────
-  // Columns (best-effort, header text matching দিয়ে detect করা হয়):
-  // Pax Type | Base Fare | Taxes | AIT | Fees | Discount | Pax Count | Sub Total
-  //
-  // NOTE: এটা Tailwind এর "grid-cols-8" class এর উপর নির্ভর করে, যা fragile।
-  // যদি কখনো এই selector কাজ না করে (UI redesign হলে), সবার আগে এখানে দেখো।
-
+  // ── STEP 3: Fare Breakdown grid/table থেকে pax-wise data extract করা ────────
   async extractAllPaxFareSummary() {
     const rawData = await this.page.evaluate(() => {
-      const COLS = 8;
-      const grids = Array.from(document.querySelectorAll('[class*="grid-cols-8"]'));
-      if (grids.length === 0) return { error: 'No grid-cols-8 found', grids: 0 };
+      // 1. Try HTML Table first
+      const tables = Array.from(document.querySelectorAll('table'));
+      for (const table of tables) {
+        const rows = Array.from(table.querySelectorAll('tr')).map(tr => 
+          Array.from(tr.querySelectorAll('th, td')).map(c => (c.textContent || '').trim())
+        ).filter(r => r.length >= 4);
+        if (rows.length >= 2) return { allRows: rows };
+      }
 
-      const allRows = [];
+      // 2. Try CSS Grid / container elements
+      const grids = Array.from(document.querySelectorAll('[class*="grid-cols-"], [class*="grid"]'));
       for (const grid of grids) {
         const children = Array.from(grid.children);
-        if (children.length >= COLS) {
-          allRows.push(children.map((c) => (c.textContent || '').trim()));
+        if (children.length >= 6) {
+          const rowText = children.map(c => (c.textContent || '').trim());
+          return { allRows: [rowText] };
         }
       }
-      return { allRows, gridCount: grids.length };
+
+      // 3. Try Modal / Popup text scan
+      const modal = document.querySelector('dialog[open], .modal[open], .modal.modal-open, .modal-box, div[role="dialog"]');
+      if (modal) {
+        const rows = Array.from(modal.querySelectorAll('div.flex, div.grid, tr')).map(el => 
+          Array.from(el.children).map(c => (c.textContent || '').trim())
+        ).filter(r => r.length >= 3);
+        if (rows.length > 0) return { allRows: rows };
+      }
+
+      return { error: 'No fare breakdown structure found' };
     });
 
-    if (rawData.error || !rawData.allRows || rawData.allRows.length < 2) {
-      console.log('⚠️  Fare Summary grid থেকে header + data row পাওয়া যায়নি:', rawData.error ?? 'rows < 2');
+    if (rawData.error || !rawData.allRows || rawData.allRows.length === 0) {
+      console.log('⚠️ Fare Summary data row পাওয়া যায়নি, DOM scan:', rawData.error);
       return [];
     }
 
-    // Header row থেকে কোন column কোনটা বের করা
-    const headerRow = rawData.allRows[0];
-    const colIndex = { paxType: 0, baseFare: -1, taxes: -1, discount: -1, subTotal: -1 };
-    for (let i = 0; i < headerRow.length; i++) {
-      const text = headerRow[i].toLowerCase();
-      if (text.includes('base fare') || text.includes('basefare')) colIndex.baseFare = i;
-      else if (text.includes('tax') && !text.includes('ait')) colIndex.taxes = i;
-      else if (text.includes('discount')) colIndex.discount = i;
-      else if (text.includes('sub total') || text.includes('subtotal')) colIndex.subTotal = i;
-      else if (text.includes('pax type')) colIndex.paxType = i;
-    }
-
-    // Header এর পরের rows থেকে Adult/Child/Infant row গুলো বের করা
     const paxRows = [];
-    for (let r = 1; r < rawData.allRows.length; r++) {
-      const row = rawData.allRows[r];
-      const firstCellText = (row[colIndex.paxType] || '').toLowerCase();
-
+    for (const row of rawData.allRows) {
+      const rowText = row.join(' ').toLowerCase();
       let paxType = null;
-      if (firstCellText.includes('adult')) paxType = 'Adult';
-      else if (firstCellText.includes('child')) paxType = 'Child';
-      else if (firstCellText.includes('infant')) paxType = 'Infant';
+      if (rowText.includes('adult') || rowText.includes('adt')) paxType = 'Adult';
+      else if (rowText.includes('child') || rowText.includes('chd') || rowText.includes('c05')) paxType = 'Child';
+      else if (rowText.includes('infant') || rowText.includes('inf')) paxType = 'Infant';
       if (!paxType) continue;
 
-      const getVal = (colIdx) => (colIdx < 0 || colIdx >= row.length ? null : this._parseAmount(row[colIdx]));
-
-      paxRows.push({
-        paxType,
-        baseFare: getVal(colIndex.baseFare),
-        tax: getVal(colIndex.taxes),
-        discount: getVal(colIndex.discount),
-        subTotal: getVal(colIndex.subTotal),
-      });
+      const amounts = row.map(c => this._parseAmount(c)).filter(n => n !== null && n > 0);
+      if (amounts.length >= 2) {
+        paxRows.push({
+          paxType,
+          baseFare: amounts[0] || 0,
+          tax: amounts[1] || 0,
+          discount: amounts.length >= 4 ? amounts[2] : 0,
+          subTotal: amounts[amounts.length - 1] || amounts[0]
+        });
+      }
     }
 
     return paxRows;

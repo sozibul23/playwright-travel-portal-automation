@@ -6,7 +6,7 @@ import { hotelSearchData, multiRoomHotelData } from '../../../data/testData.js';
 // Tags: @smoke, @critical, @regression
 // ─────────────────────────────────────────────────────────────────────────
 
-test.describe('Sprint 1 — Hotel Search Suite (HTL-01 → HTL-10)', () => {
+test.describe('Sprint 1 — Hotel Search Suite (HTL-01 to HTL-10)', () => {
   test.setTimeout(60000);
 
   test.beforeEach(async ({ hotelSearchPage }) => {

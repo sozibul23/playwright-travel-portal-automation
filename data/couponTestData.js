@@ -63,7 +63,7 @@ export const flightCouponSuite = [
     discount: 500,
     routeType: 'domestic',
     expectedStatus: 'success',
-    description: 'Domestic Route (DAC ➔ CXB)',
+    description: 'Domestic Route (DAC -> CXB)',
   },
 
   // 5. 🚫 Domestic Coupon on International Route
@@ -74,7 +74,7 @@ export const flightCouponSuite = [
     routeType: 'international',
     expectedStatus: 'error',
     expectedMessage: /not applicable|domestic|invalid|not eligible|route|service/i,
-    description: 'Reject on Intl Route (DAC ➔ DEL)',
+    description: 'Reject on Intl Route (DAC -> DEL)',
   },
 
   // 6. 🌍 International Flight Discount (INTL1500 on Intl)
@@ -85,7 +85,7 @@ export const flightCouponSuite = [
     discount: 1500,
     routeType: 'international',
     expectedStatus: 'success',
-    description: 'Intl Route (DAC ➔ DEL)',
+    description: 'Intl Route (DAC -> DEL)',
   },
 
   // 7. 🚫 International Coupon on Domestic Route
@@ -96,7 +96,7 @@ export const flightCouponSuite = [
     routeType: 'domestic',
     expectedStatus: 'error',
     expectedMessage: /not applicable|international|invalid|not eligible|route|service/i,
-    description: 'Reject on Domestic Route (DAC ➔ CXB)',
+    description: 'Reject on Domestic Route (DAC -> CXB)',
   },
 
   // 8. 🔴 Expired Coupon (EXPIRED2026)

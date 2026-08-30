@@ -6,7 +6,7 @@ import { hotelSearchData } from '../../../data/testData.js';
 // Tags: @critical, @regression
 // ─────────────────────────────────────────────────────────────────────────
 
-test.describe('Sprint 2 — Hotel Details & Room Selection Suite (HTL-21 → HTL-29)', () => {
+test.describe('Sprint 2 — Hotel Details & Room Selection Suite (HTL-21 to HTL-29)', () => {
   test.setTimeout(120000); // 2 min — details popup can be slow
 
   test.beforeEach(async ({ hotelSearchPage }) => {

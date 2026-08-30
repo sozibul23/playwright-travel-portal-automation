@@ -51,13 +51,22 @@ export class HotelDetailsPage extends BasePage {
     const detailPage = await popupPromise;
 
     console.log('Waiting for Hotel Details page to load and appear completely...');
-    await detailPage.waitForURL(/details/i, { timeout: 15000 }).catch(() => {});
+    await detailPage.waitForURL(/details/i, { timeout: 20000 }).catch(() => {});
     await detailPage.waitForLoadState('domcontentloaded').catch(() => {});
+    await detailPage.waitForLoadState('load').catch(() => {});
+    await detailPage.waitForLoadState('networkidle', { timeout: 15000 }).catch(() => {});
+
+    // Wait for any initial hotel loaders/spinners/skeletons to clear
+    const pageLoaders = detailPage.locator('.loading, .spinner, [class*="loading"], [class*="spinner"], [class*="skeleton"], [role="progressbar"], .animate-pulse');
+    if (await pageLoaders.first().isVisible({ timeout: 2000 }).catch(() => false)) {
+      console.log('⏳ Waiting for initial hotel details loaders to complete...');
+      await pageLoaders.first().waitFor({ state: 'hidden', timeout: 30000 }).catch(() => {});
+    }
 
     const detailsHeading = detailPage.locator('h1, h2, [class*="hotel-name"], [class*="title"], h3')
       .filter({ visible: true })
       .first();
-    await detailsHeading.waitFor({ state: 'visible', timeout: 15000 }).catch(() => {});
+    await detailsHeading.waitFor({ state: 'visible', timeout: 20000 }).catch(() => {});
     console.log('✅ Hotel Details page appeared and fully loaded.');
 
     return detailPage;
@@ -103,6 +112,8 @@ export class HotelDetailsPage extends BasePage {
       }
 
       await detailPage.keyboard.press('Escape').catch(() => {});
+      await detailPage.waitForTimeout(1000);
+      await detailPage.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {});
     }
   }
 
@@ -113,11 +124,26 @@ export class HotelDetailsPage extends BasePage {
    * @returns {Promise<boolean>} True if room selected & reached checkout, false if all options failed/expired
    */
   async selectFirstRoom(detailPage, preferredSupplier = 'HotelBeds - Sandbox') {
+    console.log('⏳ Ensuring Hotel Details page & Room Rates are 100% loaded...');
     await detailPage.waitForLoadState('domcontentloaded').catch(() => {});
-    await this.selectSupplierOnDetailsPage(detailPage, preferredSupplier).catch(() => {});
-    await detailPage.waitForTimeout(500);
+    await detailPage.waitForLoadState('load').catch(() => {});
+    await detailPage.waitForLoadState('networkidle', { timeout: 15000 }).catch(() => {});
 
-    // Find room rate book buttons (excluding header tabs like "Select Room", "Book Room", "Rooms")
+    // Wait for any hotel rate loading spinners / skeletons to finish loading
+    const roomLoaders = detailPage.locator('.loading, .spinner, [class*="loading"], [class*="spinner"], [class*="skeleton"], [role="progressbar"], .animate-pulse');
+    if (await roomLoaders.first().isVisible({ timeout: 2000 }).catch(() => false)) {
+      console.log('⏳ Waiting for room rates API response and spinners to hide...');
+      await roomLoaders.first().waitFor({ state: 'hidden', timeout: 35000 }).catch(() => {});
+    }
+
+    // Optional: Filter by preferred supplier
+    await this.selectSupplierOnDetailsPage(detailPage, preferredSupplier).catch(() => {});
+
+    // Settle buffer for React/Next.js rate token hydration
+    console.log('⏳ Waiting 2s buffer for room rate tokens to initialize...');
+    await detailPage.waitForTimeout(2000);
+
+    // Find room rate book buttons (excluding header navigation tabs)
     const chooseButtons = detailPage.locator('button, a, .btn, [role="button"]')
       .filter({ hasText: /^Book Now$/i })
       .or(
@@ -147,25 +173,27 @@ export class HotelDetailsPage extends BasePage {
 
     // Inspect each Choose button's immediate row ancestor to sort priority
     const priorityIndices = [];
+    const standardIndices = [];
     const fallbackIndices = [];
     const avoidIndices = [];
 
-    for (let i = 0; i < Math.min(totalBtns, 15); i++) {
+    for (let i = 0; i < Math.min(totalBtns, 20); i++) {
       const btn = chooseButtons.nth(i);
-      // Ancestor room row wrapper
       const rowAncestor = btn.locator('xpath=ancestor::tr | ancestor::div[contains(@class, "border") or contains(@class, "item") or contains(@class, "card") or contains(@class, "flex-row") or contains(@class, "grid")][1]');
       const rowText = (await rowAncestor.innerText().catch(() => '')).toLowerCase();
 
-      if (rowText.includes('hotelbeds')) {
+      if (rowText.includes('b2b deal') || rowText.includes('hotelbeds')) {
         priorityIndices.push(i);
-      } else if (rowText.includes('goglobal') || rowText.includes('expedia')) {
+      } else if (rowText.includes('payable at check-in') || rowText.includes('package deal') || rowText.includes('goglobal') || rowText.includes('expedia')) {
         avoidIndices.push(i);
+      } else if (rowText.includes('room-only') || rowText.includes('breakfast')) {
+        standardIndices.push(i);
       } else {
         fallbackIndices.push(i);
       }
     }
 
-    const sortedIndices = [...priorityIndices, ...fallbackIndices, ...avoidIndices];
+    const sortedIndices = [...priorityIndices, ...standardIndices, ...fallbackIndices, ...avoidIndices];
     console.log(`Sorted Choose button index priority: [${sortedIndices.join(', ')}]`);
 
     for (const idx of sortedIndices) {
@@ -173,8 +201,10 @@ export class HotelDetailsPage extends BasePage {
       if (await btn.isVisible({ timeout: 2000 }).catch(() => false)) {
         console.log(`Clicking Room option #${idx + 1}...`);
         await btn.scrollIntoViewIfNeeded().catch(() => {});
+        // Settle delay before click to ensure rate ID is bound to event handler
+        await detailPage.waitForTimeout(500);
         await btn.click({ force: true }).catch(() => btn.evaluate(el => el.click()));
-        await detailPage.waitForTimeout(800);
+        await detailPage.waitForTimeout(1200);
 
         // Check IMMEDIATELY if an error modal ("Request failed! Validation failed...") appeared
         const errorModal = detailPage.locator('div, dialog')
@@ -182,18 +212,29 @@ export class HotelDetailsPage extends BasePage {
           .filter({ visible: true })
           .first();
 
-        if (await errorModal.isVisible({ timeout: 1500 }).catch(() => false)) {
-          console.log(`⚠️ Room option #${idx + 1} validation failed/expired. Dismissing error modal...`);
-          const closeBtn = detailPage.locator('.modal-box button.btn-circle, .modal button.btn-circle, dialog button.btn-circle, .modal button:has-text("Close"), dialog button:has-text("Close"), .modal-box button:has-text("✕")')
+        if (await errorModal.isVisible({ timeout: 2000 }).catch(() => false)) {
+          console.log(`⚠️ Room option #${idx + 1} tracking ID expired/failed. Dismissing error modal...`);
+          const closeBtn = detailPage.getByRole('button', { name: /^Close$/i })
+            .or(detailPage.locator('button:has-text("Close"), button:has-text("✕"), .modal-box button, dialog button'))
             .filter({ visible: true })
             .first();
 
-          if (await closeBtn.isVisible({ timeout: 1500 }).catch(() => false)) {
+          if (await closeBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
             await closeBtn.click({ force: true }).catch(() => closeBtn.evaluate(el => el.click()));
-          } else {
-            await detailPage.keyboard.press('Escape').catch(() => {});
           }
-          await detailPage.waitForTimeout(600);
+
+          // Force-remove modal backdrop and dialog from DOM if still visible
+          await detailPage.evaluate(() => {
+            document.querySelectorAll('dialog[open], .modal, [class*="modal"], [role="dialog"]').forEach(el => {
+              if (el.textContent && (el.textContent.includes('Request failed') || el.textContent.includes('Validation failed'))) {
+                el.style.setProperty('display', 'none', 'important');
+                el.remove();
+              }
+            });
+            document.querySelectorAll('.modal-backdrop, [class*="backdrop"]').forEach(el => el.remove());
+          }).catch(() => {});
+
+          await detailPage.waitForTimeout(800);
           continue; // try next room option
         }
 

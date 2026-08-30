@@ -406,7 +406,58 @@ export class PassengerDetailsPage {
     await this.clickNext();
   }
 
+  /**
+   * Waits until the Total Payable price has a real value (> 0).
+   * Polls every 2s up to maxWaitMs. Handles slow supplier API responses.
+   * @param {number} maxWaitMs - Max wait time in ms (default: 60000)
+   */
+  async waitForPriceToLoad(maxWaitMs = 60000) {
+    const startTime = Date.now();
+    while (Date.now() - startTime < maxWaitMs) {
+      const price = await this.getTotalPayable();
+      if (price > 0) return price;
+      await this.page.waitForTimeout(2000);
+    }
+    console.warn('⚠️ [waitForPriceToLoad] Price never exceeded 0 within timeout. Page may not have loaded fully.');
+    return 0;
+  }
+
+  /**
+   * Expands the coupon section if it is hidden inside a collapsed accordion/dropdown.
+   * Tries common patterns: "Coupon Code" heading, promo section toggles.
+   */
+  async expandCouponSection() {
+    const couponToggle = this.page.locator(
+      'button, div[role="button"], summary, label'
+    ).filter({
+      hasText: /Coupon Code|Promo Code|Have a coupon|Discount Code|Apply Coupon/i
+    }).first();
+
+    if (await couponToggle.isVisible({ timeout: 3000 }).catch(() => false)) {
+      // Only click if the input is not already visible
+      const inputAlreadyVisible = await this.page
+        .locator('input[placeholder*="Coupon" i], input[name*="coupon" i]')
+        .first()
+        .isVisible({ timeout: 1000 })
+        .catch(() => false);
+
+      if (!inputAlreadyVisible) {
+        console.log('PassengerDetailsPage: Expanding coupon accordion section...');
+        await couponToggle.click({ force: true }).catch(() => {});
+        await this.page.waitForTimeout(800);
+      }
+    }
+  }
+
   async applyCoupon(couponCode) {
+    // ── Step 1: Wait for price to fully load (> 0) before proceeding ─────
+    const priceBefore = await this.waitForPriceToLoad(60000);
+    console.log(`[applyCoupon] Price loaded: ৳${priceBefore} | Applying: ${couponCode}`);
+
+    // ── Step 2: Expand coupon section if it's collapsed ──────────────────
+    await this.expandCouponSection();
+
+    // ── Step 3: Locate and fill the coupon input ──────────────────────────
     const couponInput = this.page
       .getByRole('textbox', { name: /Coupon/i })
       .or(this.page.locator('input[placeholder*="Coupon" i], input[name*="coupon" i]'))
@@ -416,9 +467,6 @@ export class PassengerDetailsPage {
     await couponInput.scrollIntoViewIfNeeded().catch(() => {});
     await couponInput.fill('');
     await couponInput.fill(couponCode);
-
-    // Capture price BEFORE applying
-    const priceBefore = await this.getTotalPayable();
 
     const applyBtn = this.page
       .getByRole('button', { name: /Apply/i })

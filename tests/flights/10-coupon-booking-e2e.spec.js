@@ -5,6 +5,7 @@ import { PassengerDetailsPage } from '../../pages/PassengerDetailsPage.js';
 import { FlightBookingDetailsPage } from '../../pages/FlightBookingDetailsPage.js';
 import { generateRandomPassenger } from '../../data/testData.js';
 import { flightCouponSuite } from '../../data/couponTestData.js';
+import { getFutureDate } from '../../utils/dateHelper.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 🎟️ B2B Flight Coupon — Booking E2E Price Verification
@@ -63,7 +64,7 @@ test.describe('B2B Flight Coupon — Booking E2E Price Verification (@coupon @bo
           originDisplay:    'Dhaka',
           destinationCode:  isIntl ? 'del' : 'cxb',
           destinationDisplay: isIntl ? 'Delhi' : 'Cox',
-          departureDate:    supplierConfig?.oneWay?.departureDate || '2026-09-17',
+          departureDate:    supplierConfig?.oneWay?.departureDate || getFutureDate(15),
           supplier:         isIntl ? 'All' : 'sabre itt sandbox',
         };
 

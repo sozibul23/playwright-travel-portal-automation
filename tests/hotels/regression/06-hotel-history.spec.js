@@ -6,7 +6,7 @@ import { test, expect } from '../../../fixtures/hotelFixture.js';
 // Note: History tests require at least one prior booking to exist.
 // ─────────────────────────────────────────────────────────────────────────
 
-test.describe('Sprint 5 — Hotel Booking History Suite (HTL-45 → HTL-52)', () => {
+test.describe('Sprint 5 — Hotel Booking History Suite (HTL-45 to HTL-52)', () => {
   test.setTimeout(60000);
 
   test.beforeEach(async ({ hotelHistoryPage }) => {

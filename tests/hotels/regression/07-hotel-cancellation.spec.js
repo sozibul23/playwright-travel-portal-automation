@@ -9,7 +9,7 @@ import { hotelSearchData, hotelGuestData } from '../../../data/testData.js';
 //       (to avoid destroying production bookings in staging).
 // ─────────────────────────────────────────────────────────────────────────
 
-test.describe('Sprint 6 — Hotel Cancellation Suite (HTL-53 → HTL-60)', () => {
+test.describe('Sprint 6 — Hotel Cancellation Suite (HTL-53 to HTL-60)', () => {
   test.setTimeout(300000); // 5 min
 
   // ── Shared helper: complete a booking and return detailPage + trackingId

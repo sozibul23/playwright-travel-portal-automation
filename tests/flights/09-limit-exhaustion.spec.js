@@ -4,6 +4,7 @@ import { FlightResultsPage } from '../../pages/FlightResultsPage.js';
 import { PassengerDetailsPage } from '../../pages/PassengerDetailsPage.js';
 import { FlightBookingDetailsPage } from '../../pages/FlightBookingDetailsPage.js';
 import { generateRandomPassenger } from '../../data/testData.js';
+import { getFutureDate } from '../../utils/dateHelper.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 🔁 B2B Flight Coupon — Usage Limit Exhaustion Cycle (Real E2E)
@@ -57,7 +58,7 @@ async function openCheckoutForm(page, supplierConfig) {
   await searchPage.selectOneWay();
   await searchPage.setOriginByText(ROUTE.originCode, ROUTE.originDisplay);
   await searchPage.setDestinationByText(ROUTE.destinationCode, ROUTE.destinationDisplay);
-  await searchPage.setDepartureDate(supplierConfig?.oneWay?.departureDate || '2026-09-17');
+  await searchPage.setDepartureDate(supplierConfig?.oneWay?.departureDate || getFutureDate(15));
   await searchPage.selectSupplier(ROUTE.supplier);
   await searchPage.search();
 

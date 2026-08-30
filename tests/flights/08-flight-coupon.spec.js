@@ -3,6 +3,7 @@ import { FlightSearchPage } from '../../pages/FlightSearchPage.js';
 import { FlightResultsPage } from '../../pages/FlightResultsPage.js';
 import { PassengerDetailsPage } from '../../pages/PassengerDetailsPage.js';
 import { flightCouponSuite } from '../../data/couponTestData.js';
+import { getFutureDate } from '../../utils/dateHelper.js';
 
 // ─────────────────────────────────────────────────────────────────────────
 // 🏢 B2B Flight Coupon Code Validation Suite
@@ -46,7 +47,7 @@ test.describe('B2B Flight Portal — Dynamic Coupon Suite (@coupon @b2b)', () =>
         originDisplay: 'Dhaka',
         destinationCode: isIntl ? 'del' : 'cxb',
         destinationDisplay: isIntl ? 'Delhi' : 'Cox',
-        departureDate: supplierConfig?.oneWay?.departureDate || '2026-09-17',
+        departureDate: supplierConfig?.oneWay?.departureDate || getFutureDate(15),
         supplier: isIntl ? 'All' : 'sabre itt sandbox',
       };
 
@@ -171,7 +172,7 @@ test.describe('B2B Flight Coupon — Hold Booking & Invoice Reconciliation (@cou
       originDisplay: 'Dhaka',
       destinationCode: 'cxb',
       destinationDisplay: 'Cox',
-      departureDate: supplierConfig?.oneWay?.departureDate || '2026-09-17',
+      departureDate: supplierConfig?.oneWay?.departureDate || getFutureDate(15),
       supplier: 'sabre itt sandbox',
     };
 

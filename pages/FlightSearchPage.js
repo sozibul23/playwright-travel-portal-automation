@@ -144,8 +144,58 @@ export class FlightSearchPage {
     }
   }
 
+  /**
+   * Helper to pick the correct airport from dropdown options
+   */
+  async _selectAirportOption(cityOrCode, displayText = '') {
+    const code = cityOrCode.trim().toUpperCase();
+    const cleanDisplay = displayText ? displayText.split(/[-–,]/)[0].trim() : '';
+
+    await this.page.waitForTimeout(500);
+
+    // 1. Exact airport code in parentheses, e.g. "(DEL)"
+    const parenthesizedMatch = this.page.locator('div, li, button, span, [role="option"]')
+      .filter({ hasText: `(${code})` })
+      .filter({ visible: true })
+      .first();
+    if (await parenthesizedMatch.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await parenthesizedMatch.click({ force: true }).catch(() => parenthesizedMatch.evaluate(el => el.click()));
+      return;
+    }
+
+    // 2. Exact uppercase code (case-sensitive) to avoid matching lowercase words like 'del' in 'Barra del Colorado'
+    const exactCodeMatch = this.page.locator('div, li, button, span, [role="option"]')
+      .filter({ hasText: new RegExp(`\\b${code}\\b`) })
+      .filter({ visible: true })
+      .first();
+    if (await exactCodeMatch.isVisible({ timeout: 1500 }).catch(() => false)) {
+      await exactCodeMatch.click({ force: true }).catch(() => exactCodeMatch.evaluate(el => el.click()));
+      return;
+    }
+
+    // 3. Display / City name match if provided (e.g. "Delhi", "Dhaka")
+    if (cleanDisplay && cleanDisplay.length > 2) {
+      const displayMatch = this.page.locator('div, li, button, span, [role="option"]')
+        .filter({ hasText: new RegExp(`\\b${cleanDisplay}\\b`, 'i') })
+        .filter({ visible: true })
+        .first();
+      if (await displayMatch.isVisible({ timeout: 1500 }).catch(() => false)) {
+        await displayMatch.click({ force: true }).catch(() => displayMatch.evaluate(el => el.click()));
+        return;
+      }
+    }
+
+    // 4. Fallback
+    const anyMatch = this.page.locator('div, li, button, span, [role="option"]')
+      .filter({ hasText: new RegExp(`\\b${code}\\b`, 'i') })
+      .filter({ visible: true })
+      .first();
+    await anyMatch.waitFor({ state: 'visible', timeout: 6000 });
+    await anyMatch.click({ force: true }).catch(() => anyMatch.evaluate(el => el.click()));
+  }
+
   // ── Origin ────────────────────────────────────────────────────────────────
-  async setOriginByText(cityOrCode, displayText) {
+  async setOriginByText(cityOrCode, displayText = '') {
     await this.setNthOriginByText(0, cityOrCode, displayText);
   }
 
@@ -162,16 +212,10 @@ export class FlightSearchPage {
     await searchBox.waitFor({ state: 'visible', timeout: 10000 });
     await searchBox.fill('');
     await searchBox.fill(cityOrCode);
-    await this.page.waitForTimeout(600);
+    await this.page.waitForTimeout(400);
 
-    const code = cityOrCode.trim().toUpperCase();
-    const option = this.page.locator('div, li, button, span, [role="option"]')
-      .filter({ hasText: new RegExp(`\\b${code}\\b`, 'i') })
-      .filter({ visible: true })
-      .first();
+    await this._selectAirportOption(cityOrCode, displayText);
 
-    await option.waitFor({ state: 'visible', timeout: 6000 });
-    await option.click({ force: true }).catch(() => option.evaluate(el => el.click()));
     // Wait until the dropdown closes (origin input goes back to showing selected airport)
     await this.page.waitForFunction(
       () => !document.querySelector('input[placeholder*="Airport code"]:not([style*="display: none"])'),
@@ -181,7 +225,7 @@ export class FlightSearchPage {
   }
 
   // ── Destination ───────────────────────────────────────────────────────────
-  async setDestinationByText(cityOrCode, displayText) {
+  async setDestinationByText(cityOrCode, displayText = '') {
     await this.setNthDestinationByText(0, cityOrCode, displayText);
   }
 
@@ -198,16 +242,10 @@ export class FlightSearchPage {
     await searchBox.waitFor({ state: 'visible', timeout: 10000 });
     await searchBox.fill('');
     await searchBox.fill(cityOrCode);
-    await this.page.waitForTimeout(600);
+    await this.page.waitForTimeout(400);
 
-    const code = cityOrCode.trim().toUpperCase();
-    const option = this.page.locator('div, li, button, span, [role="option"]')
-      .filter({ hasText: new RegExp(`\\b${code}\\b`, 'i') })
-      .filter({ visible: true })
-      .first();
+    await this._selectAirportOption(cityOrCode, displayText);
 
-    await option.waitFor({ state: 'visible', timeout: 6000 });
-    await option.click({ force: true }).catch(() => option.evaluate(el => el.click()));
     // Wait until the dropdown closes
     await this.page.waitForFunction(
       () => !document.querySelector('input[placeholder*="Airport code"]:not([style*="display: none"])'),

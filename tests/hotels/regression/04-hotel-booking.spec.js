@@ -11,7 +11,7 @@ import { generateRandomHotelGuests } from '../../../data/testData.js';
 //   @flaky    → HTL-34, HTL-35, HTL-36 (large groups — supplier rate expiry risk)
 // ─────────────────────────────────────────────────────────────────────────
 
-test.describe('Sprint 3 — Hotel Occupancy & Booking Suite (HTL-30 → HTL-36)', () => {
+test.describe('Sprint 3 — Hotel Occupancy & Booking Suite (HTL-30 to HTL-36)', () => {
   test.setTimeout(480000); // 8 min per test — supplier API latency
 
   test.beforeEach(async ({ hotelSearchPage }) => {
