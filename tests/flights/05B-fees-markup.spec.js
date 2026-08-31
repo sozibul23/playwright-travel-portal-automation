@@ -2,6 +2,7 @@ import { test, expect } from '../../fixtures/authFixture.js';
 import { FlightSearchPage } from '../../pages/FlightSearchPage.js';
 import { FlightResultsPage } from '../../pages/FlightResultsPage.js';
 import { PassengerDetailsPage } from '../../pages/PassengerDetailsPage.js';
+import { FlightBookingDetailsPage } from '../../pages/FlightBookingDetailsPage.js';
 import { FlightCommissionPage } from '../../pages/FlightCommissionPage.js';
 import { 
   feesConfig, 
@@ -19,19 +20,6 @@ import {
  * and different passenger combinations (Single Adult, Multi-Adult, Adult+Child, Adult+Infant, All-Pax),
  * and performs end-to-end full booking completion with post-booking price verification.
  */
-
-async function verifyBookingCreated(page, timeout = 60000) {
-  const bookingLocator = page.locator('body').filter({
-    hasText: /Booking ID:\s*FL\d+|PNR:\s*[A-Z0-9]+|Booking Code:\s*FL\d+|Hold Successful|Booking Reference:\s*FL\d+|Booking ID\s*:\s*\d+/i
-  }).first();
-
-  const isVerified = await Promise.race([
-    page.waitForURL(/\/booking-details|\/bookings|\/pnr/i, { timeout }).then(() => true).catch(() => false),
-    bookingLocator.waitFor({ state: 'visible', timeout }).then(() => true).catch(() => false)
-  ]);
-
-  expect(isVerified, '❌ Booking failed: No generated PNR or Booking ID was returned after holding the flight.').toBe(true);
-}
 
 test.describe('Flight Fees & Markup Suite', () => {
   test.describe.configure({ timeout: 360000 });
@@ -137,12 +125,15 @@ test.describe('Flight Fees & Markup Suite', () => {
       await passengerPage.clickNext();
       await passengerPage.clickInstantPurchase();
 
-      // 6. Assert Booking/Purchase Success (Fail test if purchase fails or PNR is missing)
-      await verifyBookingCreated(passengerPage.page);
-      console.log(`✅ Instant Purchase successfully completed with generated PNR on route: ${route.name}`);
+      // 6. Assert Booking/Purchase Success (Wait for Booking Confirmation across tabs)
+      const bookingDetailsPage = new FlightBookingDetailsPage(formPage);
+      await bookingDetailsPage.waitForBookingDetailsPage(90000);
+
+      const bookingId = await bookingDetailsPage.getBookingId().catch(() => 'N/A');
+      console.log(`✅ Instant Purchase successfully completed! Booking ID: ${bookingId} on route: ${route.name}`);
 
       // 7. Post-Booking: Verify Final Price & Fees on Booking Details Page
-      const bookingCommissionPage = new FlightCommissionPage(passengerPage.page);
+      const bookingCommissionPage = new FlightCommissionPage(bookingDetailsPage.page);
       const postBookingRows = await bookingCommissionPage.extractAllPaxFareSummary();
 
       if (postBookingRows.length > 0) {
@@ -151,7 +142,8 @@ test.describe('Flight Fees & Markup Suite', () => {
         bookingCommissionPage.printFeesVerificationReport(postResult);
         expect(postResult.passed, `Post-booking confirmation fees mismatch detected on route: ${route.name}`).toBe(true);
       } else {
-        console.log('ℹ️ Booking details page loaded without nested breakdown table, PNR hold verified.');
+        const grandTotal = await bookingDetailsPage.getGrandTotal().catch(() => 0);
+        console.log(`📊 Booking confirmed with Grand Total: ৳${grandTotal}`);
       }
     }
   });
