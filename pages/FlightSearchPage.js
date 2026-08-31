@@ -208,8 +208,12 @@ export class FlightSearchPage {
     await originInput.click({ force: true });
     await this.page.waitForTimeout(300);
 
-    const searchBox = this.page.locator('input[placeholder*="Airport code"], input[type="search"]').filter({ visible: true }).first();
-    await searchBox.waitFor({ state: 'visible', timeout: 10000 });
+    let searchBox = this.page.locator('input[placeholder*="Airport code"], input[type="search"]').filter({ visible: true }).first();
+    if (!await searchBox.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await originInput.click({ force: true }).catch(() => {});
+      await this.page.waitForTimeout(500);
+    }
+    await searchBox.waitFor({ state: 'visible', timeout: 15000 });
     await searchBox.fill('');
     await searchBox.fill(cityOrCode);
     await this.page.waitForTimeout(400);
@@ -238,8 +242,12 @@ export class FlightSearchPage {
     await destInput.click({ force: true });
     await this.page.waitForTimeout(300);
 
-    const searchBox = this.page.locator('input[placeholder*="Airport code"], input[type="search"]').filter({ visible: true }).first();
-    await searchBox.waitFor({ state: 'visible', timeout: 10000 });
+    let searchBox = this.page.locator('input[placeholder*="Airport code"], input[type="search"]').filter({ visible: true }).first();
+    if (!await searchBox.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await destInput.click({ force: true }).catch(() => {});
+      await this.page.waitForTimeout(500);
+    }
+    await searchBox.waitFor({ state: 'visible', timeout: 15000 });
     await searchBox.fill('');
     await searchBox.fill(cityOrCode);
     await this.page.waitForTimeout(400);
