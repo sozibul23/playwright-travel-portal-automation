@@ -133,13 +133,13 @@ test.describe('Flight Fees & Markup Suite', () => {
         await passengerPage.fillPassengerInfoAtIndex(i, uniquePax);
       }
 
-      // 5. Proceed to Booking & Hold Flight
+      // 5. Proceed to Booking & Execute Instant Purchase
       await passengerPage.clickNext();
-      await passengerPage.acceptTermsAndHoldFlight();
+      await passengerPage.clickInstantPurchase();
 
-      // 6. Assert Booking Success (Fail test if booking fails or PNR is missing)
+      // 6. Assert Booking/Purchase Success (Fail test if purchase fails or PNR is missing)
       await verifyBookingCreated(passengerPage.page);
-      console.log(`✅ Booking successfully created with generated PNR on route: ${route.name}`);
+      console.log(`✅ Instant Purchase successfully completed with generated PNR on route: ${route.name}`);
 
       // 7. Post-Booking: Verify Final Price & Fees on Booking Details Page
       const bookingCommissionPage = new FlightCommissionPage(passengerPage.page);
