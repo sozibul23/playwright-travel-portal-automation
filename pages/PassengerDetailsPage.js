@@ -182,12 +182,7 @@ export class PassengerDetailsPage {
       }
     }
 
-    // 7. Click Next if wizard step button is visible
-    const nextBtn = this.page.getByRole('button', { name: 'Next', exact: true }).filter({ visible: true }).first();
-    if (await nextBtn.isVisible({ timeout: 1500 }).catch(() => false)) {
-      await nextBtn.click({ force: true }).catch(() => {});
-      await this.page.waitForTimeout(500);
-    }
+    await this.page.waitForTimeout(300);
   }
 
   // -- Clear Form --
