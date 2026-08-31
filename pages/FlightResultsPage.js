@@ -218,35 +218,27 @@ export class FlightResultsPage {
     throw new Error('No bookable flight (with "Book Now" button) found in the search results.');
   }
 
-  // ── "Book Now" click → এর ফলে একটা নতুন POPUP TAB খোলে (LIVE SITE CONFIRMED
-  // via codegen recording) — Passenger form এই popup tab এ থাকে, original page এ না।
-  // তাই এই method এখন popup page object return করে, caller সেটাই ব্যবহার করবে।
+  // ── "Book Now" click → এর ফলে একটা নতুন POPUP TAB খোলে
   async _clickBookNowFromExpandedCard() {
-    const modalBookNow = this.page.locator('.modal, .modal-box, [class*="modal"], dialog')
-      .locator('button, a, .btn')
-      .filter({ hasText: /Book Now|Select Flight|SELECT FLIGHT|Book/i })
+    const popupPromise = this.page.context().waitForEvent('page', { timeout: 15000 }).catch(() => null);
+
+    // 1. Target the flight card's action button
+    const bookNowBtn = this.page
+      .locator('button:has-text("SELECT FLIGHT"), button:has-text("Select Flight"), button:has-text("Book Now"), button:has-text("Book")')
+      .filter({ visible: true })
       .first();
 
-    const popupPromise = this.page.context().waitForEvent('page', { timeout: 30000 }).catch(() => null);
+    await bookNowBtn.waitFor({ state: 'visible', timeout: 30000 });
+    await bookNowBtn.click({ force: true });
 
-    if (await modalBookNow.isVisible({ timeout: 3000 }).catch(() => false)) {
-      console.log('FlightResultsPage: Modal with "Book Now" already open. Clicking modal "Book Now"...');
+    // 2. If a "Price Change / Confirmation" modal opens with 'Book Now', click it
+    const modalBookNow = this.page.locator('dialog[open], .modal[open], .modal.modal-open, .modal-box')
+      .locator('button, a, .btn')
+      .filter({ hasText: /^Book Now$/i })
+      .first();
+
+    if (await modalBookNow.isVisible({ timeout: 4000 }).catch(() => false)) {
       await modalBookNow.click({ force: true });
-    } else {
-      const bookNowBtn = this.page
-        .locator('button, a, .btn')
-        .filter({ hasText: /^Book Now$|^SELECT FLIGHT$|^Select Flight$/i })
-        .or(this.page.locator('button, a, .btn').filter({ hasText: /SELECT FLIGHT|Select Flight|Book Now/i }))
-        .filter({ visible: true })
-        .first();
-
-      await bookNowBtn.waitFor({ state: 'visible', timeout: 30000 });
-      await bookNowBtn.click({ force: true });
-
-      if (await modalBookNow.isVisible({ timeout: 5000 }).catch(() => false)) {
-        console.log('FlightResultsPage: "Price Change" modal appeared after clicking card. Clicking modal "Book Now"...');
-        await modalBookNow.click({ force: true });
-      }
     }
 
     const popup = await popupPromise;
@@ -258,7 +250,7 @@ export class FlightResultsPage {
     // Check all open pages in context for checkout/booking URL
     const allPages = this.page.context().pages();
     for (const p of allPages) {
-      if (p.url().includes('checkout') || p.url().includes('booking')) {
+      if (p.url().includes('flight/book') || p.url().includes('checkout') || p.url().includes('booking') || p.url().includes('passenger')) {
         await p.waitForLoadState('domcontentloaded').catch(() => {});
         return p;
       }
