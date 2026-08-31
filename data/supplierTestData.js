@@ -107,6 +107,24 @@ export const supplierConfigs = {
         departureDate: generateRandomFutureDate(baseDays + 3, baseDays + 3),
       }
     ]
+  },
+  sabre: {
+    supplierName: 'Sabre ITT Sandbox',
+    oneWay: {
+      originCode: 'dac',
+      originDisplay: 'Dhaka - Bangladesh',
+      destinationCode: 'cxb',
+      destinationDisplay: "Cox's Bazar - Bangladesh",
+      departureDate: generateRandomFutureDate(baseDays, baseDays),
+    },
+    roundTrip: {
+      originCode: 'dac',
+      originDisplay: 'Dhaka - Bangladesh',
+      destinationCode: 'cxb',
+      destinationDisplay: "Cox's Bazar - Bangladesh",
+      departureDate: generateRandomFutureDate(baseDays, baseDays),
+      returnDate: generateRandomFutureDate(baseDays + 3, baseDays + 3),
+    },
   }
 };
 

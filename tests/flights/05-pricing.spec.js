@@ -3,53 +3,29 @@ import { FlightSearchPage } from '../../pages/FlightSearchPage.js';
 import { FlightCommissionPage } from '../../pages/FlightCommissionPage.js';
 import { FlightResultsPage } from '../../pages/FlightResultsPage.js';
 import { PassengerDetailsPage } from '../../pages/PassengerDetailsPage.js';
-import { commissionConfig, commissionTolerance } from '../../data/testData.js';
 
 /**
- * Flight Pricing, Commission & Fare Suite
+ * Flight Pricing & Fare Breakdown Suite
  *
  * Tags:
  * - @regression: Critical fare breakdown calculations & fare change checks
  * - @functional: Currency switching & baggage verifications
  * - @supplier: Supplier pricing validations
+ *
+ * Note: Dedicated Commission & Fees suites are in:
+ * - 05A-discount-commission.spec.js
+ * - 05B-fees-markup.spec.js
  */
 
 test.describe('Flight Pricing', () => {
   test.describe.configure({ timeout: 240000 });
 
-  // ── TC-010B: B2B Commission & Discount Calculation ──────────────────────────
-  test('TC-010B: Commission & Discount @supplier @regression', async ({ page, supplierConfig }) => {
-    test.setTimeout(180000);
-    const searchPage = new FlightSearchPage(page);
-    const resultsPage = new FlightResultsPage(page);
 
-    const oneWayFlightData = { 
-      ...supplierConfig.oneWay, 
-      supplier: supplierConfig.supplierName 
-    };
 
-    await searchPage.selectOneWay();
-    await searchPage.setOriginByText(oneWayFlightData.originCode, oneWayFlightData.originDisplay);
-    await searchPage.setDestinationByText(oneWayFlightData.destinationCode, oneWayFlightData.destinationDisplay);
-    await searchPage.setDepartureDate(oneWayFlightData.departureDate);
-    await searchPage.selectSupplier(oneWayFlightData.supplier);
-    await searchPage.search();
 
-    const formPage = await resultsPage.selectAndBookFlight({ isRoundTrip: false });
-    const commissionPage = new FlightCommissionPage(formPage);
 
-    await commissionPage.openFareSummaryModal();
 
-    const paxRows = await commissionPage.extractAllPaxFareSummary();
-    const passengers = paxRows.length > 0 ? paxRows : [
-      { paxType: 'Adult', count: 1, baseFare: 19002.80, tax: 13186.92, discount: 0 }
-    ];
 
-    const result = commissionPage.verifyDiscountForAllPax(passengers, commissionConfig);
-    commissionPage.printVerificationReport(result);
-
-    expect(result.passed, 'B2B Discount / Commission calculation mismatch detected').toBe(true);
-  });
 
   // ── TC-010, TC-011, TC-012: Validate Base Fare, Taxes & Total Fare ──────────
   test('TC-010: Fare Breakdown @supplier @regression', async ({ page, supplierConfig }) => {

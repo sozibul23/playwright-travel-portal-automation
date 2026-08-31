@@ -50,7 +50,22 @@ export class B2CFlightPage extends BasePage {
     await this.couponInput.fill('');
     await this.couponInput.fill(couponCode);
     await this.couponApplyBtn.click({ force: true });
-    await this.page.waitForTimeout(1500);
+    await this.page.waitForTimeout(2000);
+
+    // Dismiss any error modal if it pops up
+    const errorModal = this.page.locator('dialog[open], .modal[open], .modal.modal-open, div.modal').filter({
+      hasText: /Attention|Invalid|expired|eligible|limit|reason/i
+    }).first();
+
+    if (await errorModal.isVisible({ timeout: 1500 }).catch(() => false)) {
+      const closeBtn = errorModal.locator('button:has-text("Close"), button.btn-circle, button:has-text("✕")').first();
+      if (await closeBtn.isVisible().catch(() => false)) {
+        await closeBtn.click({ force: true }).catch(() => {});
+      } else {
+        await this.page.keyboard.press('Escape').catch(() => {});
+      }
+      await errorModal.waitFor({ state: 'hidden', timeout: 3000 }).catch(() => {});
+    }
   }
 
   /**

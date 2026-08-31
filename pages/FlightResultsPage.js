@@ -251,8 +251,17 @@ export class FlightResultsPage {
 
     const popup = await popupPromise;
     if (popup) {
-      await popup.waitForLoadState();
+      await popup.waitForLoadState('domcontentloaded').catch(() => {});
       return popup;
+    }
+
+    // Check all open pages in context for checkout/booking URL
+    const allPages = this.page.context().pages();
+    for (const p of allPages) {
+      if (p.url().includes('checkout') || p.url().includes('booking')) {
+        await p.waitForLoadState('domcontentloaded').catch(() => {});
+        return p;
+      }
     }
 
     return this.page;

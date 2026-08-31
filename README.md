@@ -75,6 +75,14 @@ npm run test:travelrobot        # TravelRobot suite
 npm run test:yuehang            # YueHang suite
 ```
 
+### 💰 Commission, Fees & FMG Markup Suite
+```bash
+npm run test:commission         # Run Commission & Discount Suite (Headless)
+npm run test:commission:headed  # Run Commission & Discount Suite (Headed)
+npm run test:fees               # Run Multi-Pax Fees & Markup Suite (Headless)
+npm run test:fees:headed        # Run Multi-Pax Fees & Markup Suite (Headed)
+```
+
 ### 🎟️ Coupon & Promotion Suite
 ```bash
 npm run test:coupon             # Run Unified Suite (B2B + B2C headless)
@@ -208,3 +216,4 @@ jobs:
 [![GitHub](https://img.shields.io/badge/GitHub-sozibul23-181717?style=flat-square&logo=github)](https://github.com/sozibul23)
 [![LinkedIn](https://img.shields.io/badge/LinkedIn-md--sozibul--islam-0077B5?style=flat-square&logo=linkedin)](https://www.linkedin.com/in/md-sozibul-islam/)
 [![Email](https://img.shields.io/badge/Email-sozibul23%40gmail.com-D14836?style=flat-square&logo=gmail)](mailto:sozibul23@gmail.com)
+

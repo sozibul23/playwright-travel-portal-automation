@@ -7,3 +7,4 @@ allure-report/
 storageState.json
 .auth/
 .env
+scratch/

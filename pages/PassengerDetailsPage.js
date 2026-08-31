@@ -468,40 +468,64 @@ export class PassengerDetailsPage {
     await couponInput.fill('');
     await couponInput.fill(couponCode);
 
+    // Setup response listener for coupon claim endpoint
+    const responsePromise = this.page.waitForResponse(
+      res => res.url().includes('discount-coupon') || res.url().includes('coupon'),
+      { timeout: 8000 }
+    ).catch(() => null);
+
     const applyBtn = this.page
       .getByRole('button', { name: /Apply/i })
       .or(this.page.locator('button:has-text("Apply")'))
       .first();
     await applyBtn.click({ force: true });
 
-    // Wait for portal response (toast, badge, or price change)
-    await this.page.waitForTimeout(2500);
+    // Await API response or timeout
+    const apiRes = await responsePromise;
+    let apiStatus = null;
+    let apiReason = '';
+    if (apiRes) {
+      try {
+        const json = await apiRes.json();
+        apiStatus = json.status;
+        apiReason = json.reason || '';
+      } catch (e) {}
+    }
+
+    // Wait for DOM update
+    await this.page.waitForTimeout(2000);
+
+    // ── Check and dismiss any Error Modal ("Attention!!") ────────────────
+    let modalMessage = '';
+    const errorModal = this.page.locator('dialog[open], .modal[open], .modal.modal-open, div.modal').filter({
+      hasText: /Attention|Invalid|expired|eligible|limit|reason/i
+    }).first();
+
+    if (await errorModal.isVisible({ timeout: 1500 }).catch(() => false)) {
+      modalMessage = (await errorModal.innerText().catch(() => '')).trim();
+      const closeBtn = errorModal.locator('button:has-text("Close"), button.btn-circle, button:has-text("✕")').first();
+      if (await closeBtn.isVisible().catch(() => false)) {
+        await closeBtn.click({ force: true }).catch(() => {});
+      } else {
+        await this.page.keyboard.press('Escape').catch(() => {});
+      }
+      await errorModal.waitFor({ state: 'hidden', timeout: 3000 }).catch(() => {});
+    }
 
     // ── Verification Method 1: Success / Error Toast ─────────────────────
-    const successToast = this.page.locator(
-      '.alert-success, .text-success, [class*="success"], ' +
-      'div:has-text("successfully"), div:has-text("Applied"), div:has-text("Discount applied")'
-    ).first();
-    const errorToast = this.page.locator(
-      '.alert-error, .alert-danger, .text-error, .text-danger, [class*="error"], [class*="danger"], ' +
-      '[role="alert"], div:has-text("invalid"), div:has-text("expired"), ' +
-      'div:has-text("not found"), div:has-text("not applicable"), div:has-text("not eligible")'
+    const successAlert = this.page.locator(
+      '.toast .alert-success, .alert.alert-success, [role="alert"].alert-success, p:has-text("discount is applied by Coupon")'
     ).first();
 
-    const isSuccessToast = await successToast.isVisible({ timeout: 3000 }).catch(() => false);
-    const isErrorToast   = await errorToast.isVisible({ timeout: 1000 }).catch(() => false);
-    const toastMessage   = isSuccessToast
-      ? await successToast.innerText().catch(() => '')
-      : isErrorToast
-        ? await errorToast.innerText().catch(() => '')
-        : '';
+    const isSuccessToast = (apiStatus === 'success') || await successAlert.isVisible({ timeout: 1000 }).catch(() => false);
+    const toastMessage = modalMessage || apiReason;
 
-    // ── Verification Method 2: Coupon Badge / Row (shows "-৳2,000") ──────
+    // ── Verification Method 2: Coupon Badge / Summary Row (shows "-৳...") ─
     const couponBadge = this.page.locator(
-      `[class*="coupon"], [class*="discount-row"], ` +
-      `div:has-text("${couponCode}"), span:has-text("${couponCode}")`
+      `p:has-text("Discount by Coupon"), :text("discount is applied by Coupon"), ` +
+      `div:has-text("Discount by Coupon ${couponCode}"), span:has-text("${couponCode}")`
     ).first();
-    const isBadgeVisible = await couponBadge.isVisible({ timeout: 2000 }).catch(() => false);
+    const isBadgeVisible = (apiStatus === 'success') || await couponBadge.isVisible({ timeout: 2000 }).catch(() => false);
 
     // ── Verification Method 3: Price Change ──────────────────────────────
     const priceAfter     = await this.getTotalPayable();
@@ -509,13 +533,13 @@ export class PassengerDetailsPage {
     const isPriceReduced = discountAmount > 0;
 
     // ── Final verdict ─────────────────────────────────────────────────────
-    const applied = isSuccessToast || isBadgeVisible || isPriceReduced;
+    const applied = (apiStatus === 'success') || isPriceReduced || (isSuccessToast && isBadgeVisible);
 
     console.log(
       `🎟️ [Coupon: ${couponCode}] ` +
       `Applied: ${applied} | ` +
       `Price: ৳${priceBefore} → ৳${priceAfter} (Discount: ৳${discountAmount}) | ` +
-      `Toast: "${toastMessage.trim().substring(0, 60)}" | ` +
+      `Toast/Reason: "${toastMessage.replace(/\n/g, ' ').trim().substring(0, 60)}" | ` +
       `Badge visible: ${isBadgeVisible}`
     );
 

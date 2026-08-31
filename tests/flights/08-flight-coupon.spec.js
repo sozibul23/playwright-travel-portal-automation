@@ -192,8 +192,8 @@ test.describe('B2B Flight Coupon — Hold Booking & Invoice Reconciliation (@cou
 
     const passengerPage = new PassengerDetailsPage(formPage);
 
-    // 3. Apply Active Coupon (e.g. AUG27)
-    const couponCode = 'AUG27';
+    // 3. Apply Active Coupon (e.g. 10PERCENT)
+    const couponCode = '10PERCENT';
     const couponResult = await passengerPage.applyCoupon(couponCode);
     expect(couponResult.applied, `❌ Coupon ${couponCode} failed to apply at checkout`).toBe(true);
 

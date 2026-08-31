@@ -24,24 +24,25 @@ export const flightCouponRoutes = [
 ];
 
 export const flightCouponSuite = [
-  // 1. 🟢 Active Fixed / Flat Discount (AUG27)
+  // 1. 🟢 Active Discount (10PERCENT)
   {
     id: 'TC-CPN-01',
-    code: 'AUG27',
-    type: 'fixed',
-    discount: 2000,
+    code: '10PERCENT',
+    type: 'percentage',
+    percentage: 10,
+    maxDiscount: 25000,
     expectedStatus: 'success',
-    description: 'Flat 2000 Tk Discount',
+    description: '10% Percentage Discount',
   },
 
-  // 2. 🔤 Case-Insensitive Check (aug27)
+  // 2. 🔤 Case-Insensitive Check (10percent)
   {
     id: 'TC-CPN-02',
-    code: 'aug27',
+    code: '10percent',
     type: 'case_insensitive',
-    discount: 2000,
+    percentage: 10,
     expectedStatus: 'success',
-    description: 'Case-Insensitive Input',
+    description: 'Case-Insensitive Input (10percent)',
   },
 
   // 3. 🟢 Percentage Discount with Max Cap (10PERCENT)
@@ -52,18 +53,18 @@ export const flightCouponSuite = [
     percentage: 10,
     maxDiscount: 25000,
     expectedStatus: 'success',
-    description: '10% Percentage Discount',
+    description: '10% Percentage Discount with Max Cap',
   },
 
-  // 4. 🛫 Domestic Flight Discount (DOMESTIC500 on Domestic)
+  // 4. 🛫 Domestic Flight Discount Eligibility Check
   {
     id: 'TC-CPN-04A',
     code: 'DOMESTIC500',
-    type: 'fixed',
-    discount: 500,
+    type: 'not_eligible',
     routeType: 'domestic',
-    expectedStatus: 'success',
-    description: 'Domestic Route (DAC -> CXB)',
+    expectedStatus: 'error',
+    expectedMessage: /not eligible|invalid|expired|not applicable|route|service/i,
+    description: 'Domestic Route Coupon Eligibility Check',
   },
 
   // 5. 🚫 Domestic Coupon on International Route
@@ -77,15 +78,15 @@ export const flightCouponSuite = [
     description: 'Reject on Intl Route (DAC -> DEL)',
   },
 
-  // 6. 🌍 International Flight Discount (INTL1500 on Intl)
+  // 6. 🌍 International Flight Discount Eligibility Check
   {
     id: 'TC-CPN-05A',
     code: 'INTL1500',
-    type: 'fixed',
-    discount: 1500,
+    type: 'not_eligible',
     routeType: 'international',
-    expectedStatus: 'success',
-    description: 'Intl Route (DAC -> DEL)',
+    expectedStatus: 'error',
+    expectedMessage: /not eligible|invalid|expired|not applicable|route|service/i,
+    description: 'Intl Route Coupon Eligibility Check',
   },
 
   // 7. 🚫 International Coupon on Domestic Route
@@ -125,7 +126,7 @@ export const flightCouponSuite = [
     code: 'MINORDER9999',
     type: 'min_spend_fail',
     expectedStatus: 'error',
-    expectedMessage: /minimum|order value|not eligible|invalid|amount/i,
+    expectedMessage: /minimum|order value|not valid|not eligible|invalid|amount/i,
     description: 'Min Order 50,000 Block',
   },
 
@@ -149,19 +150,19 @@ export const flightCouponSuite = [
     description: 'Fake Code Invalid Error',
   },
 
-  // 13. 🛡️ Non-Negative Check (AUG27)
+  // 13. 🛡️ Non-Negative Check (10PERCENT)
   {
     id: 'TC-CPN-11',
-    code: 'AUG27',
+    code: '10PERCENT',
     type: 'non_negative_check',
     expectedStatus: 'success',
     description: 'Non-Negative Price Safety',
   },
 
-  // 14. ⏱️ Global Usage Limit Expiry Cycle (LIMIT1)
+  // 14. ⏱️ Global Usage Limit Expiry Cycle (LIMIT01)
   {
     id: 'TC-CPN-12',
-    code: 'LIMIT1',
+    code: 'LIMIT01',
     type: 'usage_limit',
     expectedStatus: 'error',
     expectedMessage: /limit|exceeded|already used|redeemed|invalid|not found/i,

@@ -196,11 +196,93 @@ export const hotelCommissionConfig = {
   tolerance: 2.0,
 };
 
+// ─────────────────────────────────────────────
+// Flight Pricing / Commission & Fees Search Settings
+// ─────────────────────────────────────────────
+export const pricingRoutes = [
+  {
+    name: 'DAC to CXB (Domestic)',
+    supplier: 'Sabre ITT Sandbox',
+    originCode: 'dac',
+    originDisplay: 'Dhaka - Bangladesh',
+    destinationCode: 'cxb',
+    destinationDisplay: "Cox's Bazar - Bangladesh",
+  },
+  {
+    name: 'DAC to DEL (International)',
+    supplier: 'Sabre ITT Sandbox',
+    originCode: 'dac',
+    originDisplay: 'Dhaka - Bangladesh',
+    destinationCode: 'del',
+    destinationDisplay: 'New Delhi - India',
+  }
+];
+
+export const pricingSearchData = pricingRoutes[0];
+
+
 export const commissionConfig = {
   defaultPercent: 7.0,
   taxPercent: 0,
 };
 
 export const commissionTolerance = 2.0;
+
+export const feesConfig = {
+  Adult: {
+    baseFareMarkupPercent: 5,
+    baseFareFixedMarkup: 0,
+    taxMarkupPercent: 5,
+    taxFixedMarkup: 0,
+  },
+  Child: {
+    baseFareMarkupPercent: 5,
+    baseFareFixedMarkup: 0,
+    taxMarkupPercent: 5,
+    taxFixedMarkup: 0,
+  },
+  Infant: {
+    baseFareMarkupPercent: 5,
+    baseFareFixedMarkup: 0,
+    taxMarkupPercent: 5,
+    taxFixedMarkup: 0,
+  },
+};
+
+export const multiPaxSearchData = {
+  adults: 2,
+  children: 1,
+  infants: 0,
+};
+
+export const multiPaxScenarios = [
+  {
+    id: 'TC-010C-1',
+    name: 'Single Adult (1 Adult)',
+    passengers: { adults: 1, children: 0, infants: 0 },
+  },
+  {
+    id: 'TC-010C-2',
+    name: 'Multiple Adults (3 Adults)',
+    passengers: { adults: 3, children: 0, infants: 0 },
+  },
+  {
+    id: 'TC-010C-3',
+    name: 'Family (2 Adults + 2 Children)',
+    passengers: { adults: 2, children: 2, infants: 0 },
+  },
+  {
+    id: 'TC-010C-4',
+    name: 'Adult with Infant (1 Adult + 1 Infant)',
+    passengers: { adults: 1, children: 0, infants: 1 },
+  },
+  {
+    id: 'TC-010C-5',
+    name: 'Complete Family (2 Adults + 1 Child + 1 Infant)',
+    passengers: { adults: 2, children: 1, infants: 1 },
+  },
+];
+
+export const feesTolerance = 2.0;
 
 

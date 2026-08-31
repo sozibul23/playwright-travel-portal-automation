@@ -63,14 +63,25 @@ This document tracks test coverage and implementation status for **Flight (B2B +
 
 ---
 
-### 5️⃣ Flight Pricing & Wallet Suite (`tests/flights/05-pricing.spec.js`)
-- ✅ `TC-010B`: Commission & Discount Calculation `@supplier @regression`
-- ✅ `TC-010`: Base Fare, Tax & Subtotal Breakdown `@supplier @regression`
-- ✅ `TC-013`: Fare Change Validation `@supplier @regression`
-- ✅ `TC-014`: Currency Switcher (BDT to USD) `@supplier @functional`
-- ✅ `Pricing Check`: Baggage info check `@supplier @functional`
-- ⏳ `TC-014B`: Insufficient Agent Balance modal check `@negative`
-- ⏳ `TC-014D`: Fare Expiry & Session Timeout modal `@functional`
+### 5️⃣ Flight Pricing, Commission & Fees Suite
+- **Base Pricing & Currency Suite (`tests/flights/05-pricing.spec.js`)**
+  - ✅ `TC-010`: Base Fare, Tax & Subtotal Breakdown `@supplier @regression`
+  - ✅ `TC-013`: Fare Change Validation `@supplier @regression`
+  - ✅ `TC-014`: Currency Switcher (BDT to USD) `@supplier @functional`
+  - ✅ `Pricing Check`: Baggage info check `@supplier @functional`
+  - ⏳ `TC-014B`: Insufficient Agent Balance modal check `@negative`
+  - ⏳ `TC-014D`: Fare Expiry & Session Timeout modal `@functional`
+
+- **B2B Commission & Discount Suite (`tests/flights/05A-discount-commission.spec.js`)**
+  - ✅ `TC-010B`: Commission & Discount (Single Adult) `@supplier @regression`
+  - ✅ `TC-010E`: Commission & Discount (Multi-Pax: Adult + Child) `@supplier @regression`
+
+- **B2B Fees & FMG Markup Suite (`tests/flights/05B-fees-markup.spec.js`)**
+  - ✅ `TC-010C-1`: Fees & FMG Markup - Single Adult (1 Adult) `@supplier @regression`
+  - ✅ `TC-010C-2`: Fees & FMG Markup - Multiple Adults (3 Adults) `@supplier @regression`
+  - ✅ `TC-010C-3`: Fees & FMG Markup - Family (2 Adults + 2 Children) `@supplier @regression`
+  - ✅ `TC-010C-4`: Fees & FMG Markup - Adult with Infant (1 Adult + 1 Infant) `@supplier @regression`
+  - ✅ `TC-010C-5`: Fees & FMG Markup - Complete Family (2 Adults + 1 Child + 1 Infant) `@supplier @regression`
 
 ---
 

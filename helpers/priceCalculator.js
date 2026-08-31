@@ -22,6 +22,25 @@ export function calculateCommission(baseFare, tax = 0, baseFarePercent = 5, taxP
 }
 
 /**
+ * Calculates expected Fees / Markup based on FMG configuration
+ * Fees = (BaseFare * baseMarkup% + fixedBaseMarkup) + (Tax * taxMarkup% + fixedTaxMarkup)
+ * @param {number} baseFare - Base fare amount
+ * @param {number} tax - Tax amount
+ * @param {Object} fmgConfig - FMG markup config (percents and fixed amounts)
+ * @returns {number} Calculated total fees / markup
+ */
+export function calculateFees(baseFare, tax = 0, fmgConfig = {}) {
+  const baseFareMarkupPercent = fmgConfig.baseFareMarkupPercent ?? 0;
+  const baseFareFixedMarkup = fmgConfig.baseFareFixedMarkup ?? 0;
+  const taxMarkupPercent = fmgConfig.taxMarkupPercent ?? 0;
+  const taxFixedMarkup = fmgConfig.taxFixedMarkup ?? 0;
+
+  const baseFareFee = (baseFare * baseFareMarkupPercent) / 100 + baseFareFixedMarkup;
+  const taxFee = (tax * taxMarkupPercent) / 100 + taxFixedMarkup;
+  return parseFloat((baseFareFee + taxFee).toFixed(2));
+}
+
+/**
  * Calculates net payable amount after deducting commission from total fare.
  * @param {number} totalFare - Gross total fare
  * @param {number} commission - Commission amount
@@ -29,6 +48,19 @@ export function calculateCommission(baseFare, tax = 0, baseFarePercent = 5, taxP
  */
 export function calculateNetPayable(totalFare, commission) {
   return totalFare - commission;
+}
+
+/**
+ * Calculates expected sub total: Base Fare + Taxes + AIT + Fees - Discount
+ * @param {number} baseFare 
+ * @param {number} tax 
+ * @param {number} ait 
+ * @param {number} fees 
+ * @param {number} discount 
+ * @returns {number} Sub Total
+ */
+export function calculateSubTotal(baseFare, tax = 0, ait = 0, fees = 0, discount = 0) {
+  return parseFloat(((baseFare || 0) + (tax || 0) + (ait || 0) + (fees || 0) - (discount || 0)).toFixed(2));
 }
 
 /**
@@ -41,3 +73,15 @@ export function calculateNetPayable(totalFare, commission) {
 export function verifyCommissionWithinTolerance(actualCommission, expectedCommission, tolerance = 2.0) {
   return Math.abs(actualCommission - expectedCommission) <= tolerance;
 }
+
+/**
+ * Checks if calculated fee matches displayed fee within tolerance.
+ * @param {number} actualFee - Fees shown on portal UI
+ * @param {number} expectedFee - Formula calculated fee
+ * @param {number} tolerance - Allowable difference for rounding (default 2.0 BDT)
+ * @returns {boolean} True if within tolerance
+ */
+export function verifyFeeWithinTolerance(actualFee, expectedFee, tolerance = 2.0) {
+  return Math.abs(actualFee - expectedFee) <= tolerance;
+}
+
