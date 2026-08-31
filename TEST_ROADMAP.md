@@ -82,6 +82,7 @@ This document tracks test coverage and implementation status for **Flight (B2B +
   - ✅ `TC-010C-3`: Fees & FMG Markup - Family (2 Adults + 2 Children) `@supplier @regression`
   - ✅ `TC-010C-4`: Fees & FMG Markup - Adult with Infant (1 Adult + 1 Infant) `@supplier @regression`
   - ✅ `TC-010C-5`: Fees & FMG Markup - Complete Family (2 Adults + 1 Child + 1 Infant) `@supplier @regression`
+  - ✅ `TC-010E`: Complete Full Booking & Verify Price/Fees across Multiple Flights `@supplier @regression @e2e`
 
 ---
 

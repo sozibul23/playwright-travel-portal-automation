@@ -51,6 +51,19 @@ export class FlightCommissionPage {
     await this.openFareSummary();
   }
 
+  async closeFareSummary() {
+    const modal = this.page.locator('dialog[open], .modal[open], .modal.modal-open, .modal-box, div[role="dialog"]').first();
+    if (await modal.isVisible({ timeout: 1000 }).catch(() => false)) {
+      const closeBtn = modal.locator('button.btn-circle, button:has-text("✕"), button:has-text("Close"), button.close, [aria-label="Close"]').first();
+      if (await closeBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
+        await closeBtn.click({ force: true }).catch(() => {});
+      } else {
+        await this.page.keyboard.press('Escape').catch(() => {});
+      }
+      await this.page.waitForTimeout(500);
+    }
+  }
+
 
   // ── STEP 3: Fare Breakdown grid/table থেকে pax-wise data extract করা ────────
   async extractAllPaxFareSummary() {
