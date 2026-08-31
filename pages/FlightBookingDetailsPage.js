@@ -35,7 +35,7 @@ export class FlightBookingDetailsPage extends BasePage {
   /**
    * Waits for the page to navigate to /booking-details and settle across any open tabs
    */
-  async waitForBookingDetailsPage(timeout = 60000) {
+  async waitForBookingDetailsPage(timeout = 90000) {
     console.log('⏳ Waiting for booking confirmation and redirect to /booking-details...');
     const context = this.page.context();
     const startTime = Date.now();
@@ -44,34 +44,35 @@ export class FlightBookingDetailsPage extends BasePage {
       const pages = context.pages();
       for (const p of pages) {
         const url = p.url();
-        // ✅ Expanded URL pattern matching — covers all known portal confirmation URLs:
-        //   /booking-details, /bookings/flight, /pnr, tracking_id query param, hold_success
+        // Match ONLY actual booking confirmation pages, NOT checkout/payment page!
         if (
-          url.includes('/booking-details') ||
-          url.includes('/bookings/flight') ||
-          url.includes('/pnr') ||
-          url.includes('tracking_id=') ||
-          url.includes('hold_success') ||
-          url.includes('booking_tracking_id')
+          (url.includes('/booking-details') ||
+           url.includes('/bookings/flight') ||
+           url.includes('/pnr') ||
+           url.includes('hold_success') ||
+           url.includes('booking_tracking_id')) &&
+          !url.includes('/flight/checkout') &&
+          !url.includes('/flight/book')
         ) {
           console.log(`🎯 Found booking confirmation page: ${url}`);
           this.page = p;
           await this.page.bringToFront().catch(() => {});
           await this.page.waitForLoadState('domcontentloaded').catch(() => {});
-          // Extra wait for dynamic content (price summary, booking ID) to render
           await this.page.waitForTimeout(4000);
           return;
         }
       }
 
-      // Fallback: check current page for booking reference text elements
-      const bookingRef = this.page.locator('body').filter({
-        hasText: /Booking ID:\s*FL\d+|PNR:\s*[A-Z0-9]+|Hold Successful|Booking Confirmed|Your booking|Tracking ID/i
-      }).first();
-      if (await bookingRef.isVisible({ timeout: 500 }).catch(() => false)) {
-        console.log('🎯 Found booking reference element on current page!');
-        await this.page.waitForTimeout(2000);
-        return;
+      // Fallback: check current page for booking reference text elements (exclude checkout page)
+      if (!this.page.url().includes('/flight/checkout')) {
+        const bookingRef = this.page.locator('body').filter({
+          hasText: /Booking ID:\s*FL\d+|PNR:\s*[A-Z0-9]+|Hold Successful|Booking Confirmed|Your booking/i
+        }).first();
+        if (await bookingRef.isVisible({ timeout: 500 }).catch(() => false)) {
+          console.log('🎯 Found booking reference element on confirmation page!');
+          await this.page.waitForTimeout(2000);
+          return;
+        }
       }
 
       await this.page.waitForTimeout(1000);
