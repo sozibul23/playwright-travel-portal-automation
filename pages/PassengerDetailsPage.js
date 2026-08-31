@@ -369,57 +369,59 @@ export class PassengerDetailsPage {
   }
 
   /**
-  * Strictly clicks 'Instant Purchase' button only (excludes Hold Flight)
-  */
+   * Strictly clicks 'Instant Purchase' button only (excludes Hold Flight)
+   */
   async clickInstantPurchase() {
     await this.dismissModals();
     await this.page.waitForLoadState('domcontentloaded').catch(() => {});
 
-    // 1. Explicitly check 'Terms and Conditions' & 'Cancellation Policies' checkboxes
-    const termsLabel = this.page.locator('label, div, p, span').filter({ hasText: /I have read and accept|Terms and Conditions/i }).first();
-    if (await termsLabel.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await termsLabel.click({ force: true }).catch(() => {});
-    }
-
-    const cancelLabel = this.page.locator('label, div, p, span').filter({ hasText: /I agree and understand|Cancellation Policies/i }).first();
-    if (await cancelLabel.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await cancelLabel.click({ force: true }).catch(() => {});
-    }
-
-    // Fallback: check all input[type="checkbox"] via DOM evaluate & change events
-    const allCheckboxes = this.page.locator('input[type="checkbox"]');
-    const chkCount = await allCheckboxes.count();
-    for (let i = 0; i < chkCount; i++) {
-      const chk = allCheckboxes.nth(i);
-      await chk.evaluate(el => {
-        if (!el.checked) {
-          el.click();
-          el.checked = true;
-          el.dispatchEvent(new Event('change', { bubbles: true }));
-          el.dispatchEvent(new Event('input', { bubbles: true }));
-        }
-      }).catch(() => {});
-    }
-
-    await this.page.waitForTimeout(600);
-
-    // 2. Click 'Instant Purchase' button
+    // Target Instant Purchase button and scroll to it
     const instantBtn = this.page
-      .locator('button, a.btn, .btn, [role="button"]')
-      .filter({ hasText: /^Instant Purchase$/i })
+      .getByRole('button', { name: /Instant Purchase/i })
       .or(this.page.locator('button:has-text("Instant Purchase"), [role="button"]:has-text("Instant Purchase")'))
       .filter({ hasNotText: /Hold Flight|Hold/i })
       .filter({ visible: true })
       .first();
 
-    await instantBtn.waitFor({ state: 'visible', timeout: 10000 });
+    await instantBtn.waitFor({ state: 'visible', timeout: 30000 });
     await instantBtn.scrollIntoViewIfNeeded().catch(() => {});
-    await instantBtn.click({ force: true }).catch(() => instantBtn.evaluate(el => el.click()));
-    await this.page.waitForTimeout(2000).catch(() => {});
 
-    // 3. Handle secondary confirmation modal popup if present
+    // 1. Click specifically on the checkbox text / labels
+    const termsText = this.page.getByText(/I have read and accept/i).first();
+    if (await termsText.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await termsText.click({ force: true }).catch(() => {});
+    }
+
+    const cancelText = this.page.getByText(/I agree and understand/i).first();
+    if (await cancelText.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await cancelText.click({ force: true }).catch(() => {});
+    }
+
+    // 2. Ensure all input[type="checkbox"] are checked via DOM
+    const allCheckboxes = this.page.locator('input[type="checkbox"]');
+    const chkCount = await allCheckboxes.count();
+    for (let i = 0; i < chkCount; i++) {
+      const chk = allCheckboxes.nth(i);
+      const isChecked = await chk.isChecked().catch(() => false);
+      if (!isChecked) {
+        await chk.check({ force: true }).catch(() => {});
+        await chk.evaluate(el => {
+          el.checked = true;
+          el.dispatchEvent(new Event('change', { bubbles: true }));
+          el.dispatchEvent(new Event('input', { bubbles: true }));
+        }).catch(() => {});
+      }
+    }
+
+    await this.page.waitForTimeout(600);
+
+    // 3. Click 'Instant Purchase' button
+    await instantBtn.click({ force: true });
+
+    // 4. Handle secondary confirmation modal popup if present
+    await this.page.waitForTimeout(1000);
     const modalDialog = this.page.locator('dialog[open], .modal[open], .modal.modal-open, .modal-box, div[role="dialog"]');
-    if (await modalDialog.isVisible({ timeout: 3000 }).catch(() => false)) {
+    if (await modalDialog.isVisible({ timeout: 4000 }).catch(() => false)) {
       const modalConfirmBtn = modalDialog
         .locator('button, a')
         .filter({ hasText: /Confirm|Yes|OK|Proceed|Pay|Purchase/i })
