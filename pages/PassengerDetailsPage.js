@@ -95,7 +95,6 @@ export class PassengerDetailsPage {
     for (const selector of travelerTabSelectors) {
       const tab = this.page.locator(selector).first();
       if (await tab.isVisible({ timeout: 1000 }).catch(() => false)) {
-        console.log(`PassengerDetailsPage: Clicking traveler tab/accordion using selector: ${selector}`);
         await tab.click({ force: true }).catch(() => {});
         await this.page.waitForTimeout(400);
         break;
@@ -116,7 +115,6 @@ export class PassengerDetailsPage {
       await firstNameField.focus();
       await firstNameField.clear().catch(() => {});
       await firstNameField.fill(firstName);
-      console.log(`PassengerDetailsPage: Filled First Name for Traveler ${index + 1}: ${firstName}`);
     }
 
     // 3. Locate Last Name Field (Card-specific or Index-aware)
@@ -132,7 +130,6 @@ export class PassengerDetailsPage {
       await lastNameField.focus();
       await lastNameField.clear().catch(() => {});
       await lastNameField.fill(lastName);
-      console.log(`PassengerDetailsPage: Filled Last Name for Traveler ${index + 1}: ${lastName}`);
     }
 
     // 4. Locate Passport Field

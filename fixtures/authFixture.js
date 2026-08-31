@@ -114,17 +114,13 @@ export const test = base.extend({
 
     // 3. If session is missing or expired, perform UI login and save state
     if (!isSearchVisible || !hasSessionCookie) {
-      console.log(`[Worker ${workerIndex}] Session missing/expired. Performing fresh login as: ${username}`);
       await forceFreshLogin(page, username, password, authPath);
-    } else {
-      console.log(`[Worker ${workerIndex}] Reused active session for user: ${username}`);
     }
 
     // Ensure search page is ready
     await searchBtn.waitFor({ state: 'visible', timeout: 30000 });
 
     // Login এর পর কোনো promo/announcement modal পপআপ আসলে তা বন্ধ করা
-    console.log('Checking for open promo/announcement modals...');
     const openModals = page.locator('dialog[open], [role="dialog"][open], .modal[open], .modal.modal-open');
     
     // We check for up to 3 seconds if an open modal is active
@@ -145,7 +141,6 @@ export const test = base.extend({
         
         if (isVisible && isDisplayed) {
           modalHandled = true;
-          console.log(`Open modal detected at index ${j}. Attempting to close it...`);
           
           // Target close button inside this specific modal
           const closeBtn = modal.locator('button.btn-circle, button:has-text("✕"), button:has-text("Close")').first();
