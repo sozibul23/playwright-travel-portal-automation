@@ -375,7 +375,7 @@ export class PassengerDetailsPage {
     await this.dismissModals();
     await this.page.waitForLoadState('domcontentloaded').catch(() => {});
 
-    // Target Instant Purchase button and scroll to it
+    // 1. Wait for checkout page & Instant Purchase button to be visible
     const instantBtn = this.page
       .getByRole('button', { name: /Instant Purchase/i })
       .or(this.page.locator('button:has-text("Instant Purchase"), [role="button"]:has-text("Instant Purchase")'))
@@ -386,40 +386,45 @@ export class PassengerDetailsPage {
     await instantBtn.waitFor({ state: 'visible', timeout: 30000 });
     await instantBtn.scrollIntoViewIfNeeded().catch(() => {});
 
-    // 1. Click specifically on the checkbox text / labels
-    const termsText = this.page.getByText(/I have read and accept/i).first();
-    if (await termsText.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await termsText.click({ force: true }).catch(() => {});
+    // 2. Click specifically on the 2 checkbox boxes & their text
+    const termsRow = this.page.locator('div, label, span, p').filter({ hasText: /I have read and accept/i }).first();
+    if (await termsRow.isVisible({ timeout: 2000 }).catch(() => false)) {
+      // Click on the box area (x=5) and the row
+      await termsRow.click({ force: true, position: { x: 5, y: 10 } }).catch(() => {});
+      await termsRow.click({ force: true }).catch(() => {});
     }
 
-    const cancelText = this.page.getByText(/I agree and understand/i).first();
-    if (await cancelText.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await cancelText.click({ force: true }).catch(() => {});
+    const cancelRow = this.page.locator('div, label, span, p').filter({ hasText: /I agree and understand/i }).first();
+    if (await cancelRow.isVisible({ timeout: 2000 }).catch(() => false)) {
+      // Click on the box area (x=5) and the row
+      await cancelRow.click({ force: true, position: { x: 5, y: 10 } }).catch(() => {});
+      await cancelRow.click({ force: true }).catch(() => {});
     }
 
-    // 2. Ensure all input[type="checkbox"] are checked via DOM
+    // Also force-check all input[type="checkbox"] elements via DOM
     const allCheckboxes = this.page.locator('input[type="checkbox"]');
     const chkCount = await allCheckboxes.count();
     for (let i = 0; i < chkCount; i++) {
       const chk = allCheckboxes.nth(i);
-      const isChecked = await chk.isChecked().catch(() => false);
-      if (!isChecked) {
-        await chk.check({ force: true }).catch(() => {});
-        await chk.evaluate(el => {
-          el.checked = true;
-          el.dispatchEvent(new Event('change', { bubbles: true }));
-          el.dispatchEvent(new Event('input', { bubbles: true }));
-        }).catch(() => {});
-      }
+      await chk.scrollIntoViewIfNeeded().catch(() => {});
+      await chk.click({ force: true }).catch(() => {});
+      await chk.check({ force: true }).catch(() => {});
+      await chk.evaluate(el => {
+        el.checked = true;
+        el.dispatchEvent(new Event('change', { bubbles: true }));
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+        el.dispatchEvent(new Event('click', { bubbles: true }));
+      }).catch(() => {});
     }
 
-    await this.page.waitForTimeout(600);
+    await this.page.waitForTimeout(1000);
 
     // 3. Click 'Instant Purchase' button
+    console.log('PassengerDetailsPage: Clicking Instant Purchase button...');
     await instantBtn.click({ force: true });
 
-    // 4. Handle secondary confirmation modal popup if present
-    await this.page.waitForTimeout(1000);
+    // 4. Handle secondary confirmation popup modal if present (e.g. "Confirm Purchase")
+    await this.page.waitForTimeout(1500);
     const modalDialog = this.page.locator('dialog[open], .modal[open], .modal.modal-open, .modal-box, div[role="dialog"]');
     if (await modalDialog.isVisible({ timeout: 4000 }).catch(() => false)) {
       const modalConfirmBtn = modalDialog
@@ -427,6 +432,7 @@ export class PassengerDetailsPage {
         .filter({ hasText: /Confirm|Yes|OK|Proceed|Pay|Purchase/i })
         .first();
       if (await modalConfirmBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+        console.log('PassengerDetailsPage: Clicking confirmation in popup modal...');
         await modalConfirmBtn.click({ force: true }).catch(() => {});
       }
     }
