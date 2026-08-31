@@ -77,56 +77,118 @@ export class PassengerDetailsPage {
   }
 
   // -- Multiple Passenger info fill --
-  async fillPassengerInfoAtIndex(index, { firstName, lastName, passportNumber, mobile, email }) {
-    const travelerTab = this.page.locator('button, tab, .accordion, div, h4, h5')
-      .filter({ hasText: new RegExp(`Traveler ${index + 1}`, 'i') })
-      .first();
+  async fillPassengerInfoAtIndex(index, { firstName, lastName, passportNumber, mobile, email } = {}) {
+    await this.dismissModals();
 
-    if (index > 0 && await travelerTab.isVisible({ timeout: 2000 }).catch(() => false)) {
-      console.log(`PassengerDetailsPage: Clicking tab for Traveler ${index + 1}...`);
-      await travelerTab.click({ force: true });
-      await this.page.waitForTimeout(500);
+    // 1. Expand / Activate Traveler Tab or Accordion
+    const travelerTabSelectors = [
+      `text=/Traveler\\s*${index + 1}/i`,
+      `text=/Adult\\s*${index + 1}|Adult\\s*Traveler\\s*${index + 1}/i`,
+      `text=/Child\\s*${index}|Child\\s*Traveler|Child\\s*${index + 1}|Child/i`,
+      `text=/Infant\\s*${index}|Infant\\s*Traveler|Infant\\s*${index + 1}|Infant/i`,
+      `button:has-text("Traveler ${index + 1}")`,
+      `button:has-text("Child")`,
+      `button:has-text("Infant")`,
+      `.accordion-button:nth-of-type(${index + 1})`
+    ];
+
+    for (const selector of travelerTabSelectors) {
+      const tab = this.page.locator(selector).first();
+      if (await tab.isVisible({ timeout: 1000 }).catch(() => false)) {
+        console.log(`PassengerDetailsPage: Clicking traveler tab/accordion using selector: ${selector}`);
+        await tab.click({ force: true }).catch(() => {});
+        await this.page.waitForTimeout(400);
+        break;
+      }
     }
 
-    const firstNameField = this.page.getByRole('textbox', { name: /First|Given Name/i }).filter({ visible: true }).first();
-    await firstNameField.waitFor({ state: 'visible', timeout: 30000 });
-    if (await firstNameField.isEditable().catch(() => false)) {
+    // 2. Locate First Name Field (Card-specific or Index-aware)
+    const allFirstNameInputs = this.page
+      .getByRole('textbox', { name: /First|Given Name/i })
+      .or(this.page.locator('input[name*="firstName"], input[placeholder*="First"], input[name*="givenName"]'))
+      .filter({ visible: true });
+
+    const fnCount = await allFirstNameInputs.count();
+    const firstNameField = fnCount > index ? allFirstNameInputs.nth(index) : (fnCount > 0 ? allFirstNameInputs.last() : allFirstNameInputs.first());
+
+    await firstNameField.waitFor({ state: 'visible', timeout: 15000 }).catch(() => {});
+    if (await firstNameField.isVisible({ timeout: 2000 }).catch(() => false) && await firstNameField.isEditable().catch(() => false)) {
+      await firstNameField.focus();
+      await firstNameField.clear().catch(() => {});
       await firstNameField.fill(firstName);
+      console.log(`PassengerDetailsPage: Filled First Name for Traveler ${index + 1}: ${firstName}`);
     }
 
-    const lastNameField = this.page.getByRole('textbox', { name: /Surname|Family|Last Name/i }).filter({ visible: true }).first();
+    // 3. Locate Last Name Field (Card-specific or Index-aware)
+    const allLastNameInputs = this.page
+      .getByRole('textbox', { name: /Surname|Family|Last Name/i })
+      .or(this.page.locator('input[name*="lastName"], input[placeholder*="Last"], input[name*="surName"]'))
+      .filter({ visible: true });
+
+    const lnCount = await allLastNameInputs.count();
+    const lastNameField = lnCount > index ? allLastNameInputs.nth(index) : (lnCount > 0 ? allLastNameInputs.last() : allLastNameInputs.first());
+
     if (await lastNameField.isVisible({ timeout: 2000 }).catch(() => false) && await lastNameField.isEditable().catch(() => false)) {
+      await lastNameField.focus();
+      await lastNameField.clear().catch(() => {});
       await lastNameField.fill(lastName);
+      console.log(`PassengerDetailsPage: Filled Last Name for Traveler ${index + 1}: ${lastName}`);
     }
 
+    // 4. Locate Passport Field
     if (passportNumber) {
-      const passportField = this.page.getByRole('textbox', { name: /Passport Number/i }).filter({ visible: true }).first();
+      const allPassportInputs = this.page
+        .getByRole('textbox', { name: /Passport Number/i })
+        .or(this.page.locator('input[name*="passport"], input[placeholder*="Passport"]'))
+        .filter({ visible: true });
+
+      const passCount = await allPassportInputs.count();
+      const passportField = passCount > index ? allPassportInputs.nth(index) : (passCount > 0 ? allPassportInputs.last() : allPassportInputs.first());
+
       if (await passportField.isVisible({ timeout: 2000 }).catch(() => false) && await passportField.isEditable().catch(() => false)) {
-        await passportField.clear();
+        await passportField.focus();
+        await passportField.clear().catch(() => {});
         await passportField.fill(passportNumber);
       }
     }
 
+    // 5. Locate Mobile Field
     if (mobile) {
-      const mobileField = this.page.locator('input[placeholder="Enter Mobile Number"]').filter({ visible: true }).first();
+      const allMobileInputs = this.page
+        .locator('input[placeholder="Enter Mobile Number"], input[name*="mobile"], input[type="tel"]')
+        .filter({ visible: true });
+
+      const mobCount = await allMobileInputs.count();
+      const mobileField = mobCount > index ? allMobileInputs.nth(index) : (mobCount > 0 ? allMobileInputs.last() : allMobileInputs.first());
+
       if (await mobileField.isVisible({ timeout: 2000 }).catch(() => false) && await mobileField.isEditable().catch(() => false)) {
         await mobileField.focus();
         await this.page.keyboard.press('Control+a');
         await this.page.keyboard.press('Backspace');
-        await mobileField.pressSequentially(mobile, { delay: 50 });
+        await mobileField.pressSequentially(mobile, { delay: 30 });
       }
     }
 
+    // 6. Locate Email Field
     if (email) {
-      const emailField = this.page.locator('input[placeholder="example@mail.com"]').filter({ visible: true }).first();
+      const allEmailInputs = this.page
+        .locator('input[placeholder="example@mail.com"], input[name*="email"], input[type="email"]')
+        .filter({ visible: true });
+
+      const emailCount = await allEmailInputs.count();
+      const emailField = emailCount > index ? allEmailInputs.nth(index) : (emailCount > 0 ? allEmailInputs.last() : allEmailInputs.first());
+
       if (await emailField.isVisible({ timeout: 2000 }).catch(() => false) && await emailField.isEditable().catch(() => false)) {
+        await emailField.focus();
+        await emailField.clear().catch(() => {});
         await emailField.fill(email);
       }
     }
 
+    // 7. Click Next if wizard step button is visible
     const nextBtn = this.page.getByRole('button', { name: 'Next', exact: true }).filter({ visible: true }).first();
-    if (await nextBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await nextBtn.click({ force: true });
+    if (await nextBtn.isVisible({ timeout: 1500 }).catch(() => false)) {
+      await nextBtn.click({ force: true }).catch(() => {});
       await this.page.waitForTimeout(500);
     }
   }
