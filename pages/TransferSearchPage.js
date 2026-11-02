@@ -32,13 +32,26 @@ export class TransferSearchPage extends BasePage {
 
   async goToTransferTab() {
     console.log('🚗 Navigating to Transfer Tab...');
+    // Dismiss any open error/alert modal from previous actions
+    const modalCloseBtn = this.page.locator('.modal, [role="dialog"]')
+      .getByRole('button', { name: /close|ok|dismiss/i })
+      .or(this.page.getByRole('button', { name: 'Close' }))
+      .filter({ visible: true })
+      .first();
+
+    if (await modalCloseBtn.isVisible({ timeout: 1500 }).catch(() => false)) {
+      await modalCloseBtn.click({ force: true }).catch(() => {});
+      await this.page.waitForTimeout(400);
+    }
+
     await this.waitAndClick(this.transferTab);
     await this.page.waitForTimeout(1000);
   }
 
   async selectPickupLocation(query, displayName = '') {
     console.log(`📍 Selecting Pickup Location: ${query}...`);
-    await this.waitAndClick(this.pickupTrigger);
+    const trigger = this.page.getByRole('textbox', { name: 'Select' }).first();
+    await this.waitAndClick(trigger);
     await this.locationSearchInput.waitFor({ state: 'visible', timeout: 5000 });
     await this.locationSearchInput.fill(query);
     await this.page.waitForTimeout(800);
@@ -59,11 +72,13 @@ export class TransferSearchPage extends BasePage {
         .first()
         .click();
     }
+    await this.page.waitForTimeout(500);
   }
 
   async selectDropoffLocation(query, displayName = '') {
     console.log(`🏁 Selecting Dropoff Location: ${query}...`);
-    await this.waitAndClick(this.dropoffTrigger);
+    const trigger = this.page.getByRole('textbox', { name: 'Select' }).nth(1);
+    await this.waitAndClick(trigger);
     await this.locationSearchInput.waitFor({ state: 'visible', timeout: 5000 });
     await this.locationSearchInput.fill(query);
     await this.page.waitForTimeout(800);
@@ -82,6 +97,7 @@ export class TransferSearchPage extends BasePage {
         .first()
         .click();
     }
+    await this.page.waitForTimeout(500);
   }
 
   async selectDate(dateLabel) {
@@ -130,6 +146,27 @@ export class TransferSearchPage extends BasePage {
     if (await activeDay.isVisible({ timeout: 3000 }).catch(() => false)) {
       await activeDay.click({ force: true });
     }
+  }
+
+  async isPastDateDisabled() {
+    console.log('📅 Checking if past dates are disabled in calendar...');
+    await this.waitAndClick(this.dateInput);
+    await this.page.waitForTimeout(600);
+    const openCalendar = this.page.locator('.flatpickr-calendar.open, .flatpickr-calendar')
+      .filter({ visible: true })
+      .first();
+    await openCalendar.waitFor({ state: 'visible', timeout: 5000 }).catch(() => {});
+    const disabledDays = openCalendar.locator('.flatpickr-day.flatpickr-disabled');
+    const count = await disabledDays.count().catch(() => 0);
+    return count > 0;
+  }
+
+  async searchGibberish(query) {
+    console.log(`🔎 Typing gibberish search: ${query}...`);
+    await this.waitAndClick(this.pickupTrigger);
+    await this.locationSearchInput.waitFor({ state: 'visible', timeout: 5000 });
+    await this.locationSearchInput.fill(query);
+    await this.page.waitForTimeout(1000);
   }
 
   async clickSearch() {

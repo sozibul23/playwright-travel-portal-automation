@@ -119,6 +119,21 @@ export class TransferBookingPage extends BasePage {
     await this.page.waitForTimeout(1500);
   }
 
+  async clickNext() {
+    console.log('➡️ Clicking Next button on passenger form...');
+    await this.waitAndClick(this.nextButton);
+    await this.page.waitForTimeout(1000);
+  }
+
+  async isNextStepActive(stepNameOrNum) {
+    // Check if step 3 (Payment details) is active
+    const stepLocator = this.page.locator('button, div')
+      .filter({ hasText: new RegExp(stepNameOrNum, 'i') })
+      .filter({ visible: true })
+      .first();
+    return stepLocator.isVisible({ timeout: 2000 }).catch(() => false);
+  }
+
   async acceptTermsAndReserve() {
     console.log('✅ Accepting Terms & Conditions...');
     const terms = this.page.getByRole('checkbox', { name: /terms/i }).first();

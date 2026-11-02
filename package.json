@@ -55,6 +55,8 @@
     "test:hotel:details": "playwright test tests/hotels/regression/03-hotel-details.spec.js --project=hotel-regression",
     "test:transfer": "playwright test --project=transfer",
     "test:transfer:headed": "playwright test --project=transfer --headed",
+    "test:transfer:negative": "playwright test tests/transfer/02-transfer-negative.spec.js --project=transfer",
+    "test:transfer:negative:headed": "playwright test tests/transfer/02-transfer-negative.spec.js --project=transfer --headed",
     "test:hotel:confirmation": "playwright test tests/hotels/regression/05-hotel-confirmation.spec.js --project=hotel-regression",
     "test:hotel:history": "playwright test tests/hotels/regression/06-hotel-history.spec.js --project=hotel-regression",
     "test:hotel:cancellation": "playwright test tests/hotels/regression/07-hotel-cancellation.spec.js --project=hotel-regression",
