@@ -160,6 +160,13 @@ if (envSupplier) {
     timeout: 480000,
   });
 
+  // 🚗 Transfer Module Project
+  projects.push({
+    name: 'transfer',
+    testMatch: ['transfer/**/*.spec.js'],
+    use: { ...chrome },
+  });
+
   // 🌐 Dedicated B2C Project
   projects.push({
     name: 'b2c',
